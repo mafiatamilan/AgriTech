@@ -1,0 +1,37 @@
+from fastapi import APIRouter, Depends
+from pydantic import BaseModel
+from app.core.deps import get_current_farmer
+from app.db.supabase_client import get_supabase
+
+router = APIRouter(prefix="/account", tags=["account"])
+
+
+class AccountUpdate(BaseModel):
+    name: str | None = None
+    phone: str | None = None
+    email: str | None = None
+
+
+@router.get("")
+async def get_account(current_farmer: dict = Depends(get_current_farmer)):
+    sb = get_supabase()
+    resp = sb.table("farmers").select("*").eq("id", current_farmer["id"]).execute()
+    if not resp.data:
+        return {}
+
+    metrics = sb.table("impact_metrics").select("*") \
+        .eq("farmer_id", current_farmer["id"]).order("created_at", desc=True).limit(10).execute()
+
+    return {
+        "profile": resp.data[0],
+        "impact_metrics": metrics.data,
+    }
+
+
+@router.patch("")
+async def update_account(req: AccountUpdate, current_farmer: dict = Depends(get_current_farmer)):
+    sb = get_supabase()
+    update_data = req.model_dump(exclude_unset=True)
+    if update_data:
+        sb.table("farmers").update(update_data).eq("id", current_farmer["id"]).execute()
+    return {"status": "updated"}
