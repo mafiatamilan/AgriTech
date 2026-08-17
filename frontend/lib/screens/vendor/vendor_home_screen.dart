@@ -1,0 +1,214 @@
+import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+
+import '../../core/theme.dart';
+import '../../l10n/app_localizations.dart';
+import '../../models/models.dart';
+import '../../providers/providers.dart';
+import '../../widgets/shared.dart';
+
+class VendorHomeScreen extends ConsumerStatefulWidget {
+  const VendorHomeScreen({super.key});
+
+  @override
+  ConsumerState<VendorHomeScreen> createState() => _VendorHomeScreenState();
+}
+
+class _VendorHomeScreenState extends ConsumerState<VendorHomeScreen> {
+  final _cropController = TextEditingController();
+  final _qtyController = TextEditingController();
+  final _priceController = TextEditingController();
+  bool _signedUp = false;
+  bool _submitting = false;
+
+  @override
+  void dispose() {
+    _cropController.dispose();
+    _qtyController.dispose();
+    _priceController.dispose();
+    super.dispose();
+  }
+
+  Future<void> _signup() async {
+    setState(() => _submitting = true);
+    try {
+      await ref.read(backendProvider).vendorSignup();
+      setState(() => _signedUp = true);
+      ref.invalidate(vendorRequestsProvider);
+    } on Exception catch (e) {
+      if (mounted) showError(context, e);
+    } finally {
+      if (mounted) setState(() => _submitting = false);
+    }
+  }
+
+  Future<void> _addRequest() async {
+    final l10n = AppLocalizations.of(context);
+    if (_cropController.text.trim().isEmpty) {
+      if (mounted) showError(context, '${l10n.vendorCropName} is required');
+      return;
+    }
+    setState(() => _submitting = true);
+    try {
+      await ref.read(backendProvider).vendorCreateRequest(
+            cropName: _cropController.text.trim(),
+            quantityNeeded: double.tryParse(_qtyController.text),
+            expectedPrice: double.tryParse(_priceController.text),
+          );
+      ref.invalidate(vendorRequestsProvider);
+      _cropController.clear();
+      _qtyController.clear();
+      _priceController.clear();
+    } on Exception catch (e) {
+      if (mounted) showError(context, e);
+    } finally {
+      if (mounted) setState(() => _submitting = false);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context);
+    final requests = ref.watch(vendorRequestsProvider);
+
+    return Scaffold(
+      appBar: AppBar(
+        title: Text(l10n.appTitle),
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.logout),
+            onPressed: () => ref.read(authProvider.notifier).signOut(),
+          ),
+        ],
+      ),
+      body: requests.when(
+        loading: () => const Center(child: CircularProgressIndicator()),
+        error: (e, _) => !_signedUp
+            ? _SignupView(
+                submitting: _submitting,
+                onSignup: _signup,
+              )
+            : ErrorView(onRetry: () => ref.invalidate(vendorRequestsProvider)),
+        data: (items) => ListView(
+          children: [
+            Padding(
+              padding: const EdgeInsets.all(16),
+              child: Text(l10n.vendorNeedTitle,
+                  style: Theme.of(context).textTheme.titleMedium),
+            ),
+            Card(
+              child: Padding(
+                padding: const EdgeInsets.all(16),
+                child: Column(
+                  children: [
+                    TextField(
+                      controller: _cropController,
+                      decoration: InputDecoration(
+                          labelText: l10n.vendorCropName, isDense: true),
+                    ),
+                    const SizedBox(height: 12),
+                    TextField(
+                      controller: _qtyController,
+                      keyboardType: TextInputType.number,
+                      decoration: InputDecoration(
+                          labelText: l10n.vendorQuantity, isDense: true),
+                    ),
+                    const SizedBox(height: 12),
+                    TextField(
+                      controller: _priceController,
+                      keyboardType: TextInputType.number,
+                      decoration: InputDecoration(
+                          labelText: l10n.vendorExpectedPrice, isDense: true),
+                    ),
+                    const SizedBox(height: 16),
+                    SizedBox(
+                      width: double.infinity,
+                      child: FilledButton(
+                        onPressed: _submitting ? null : _addRequest,
+                        child: _submitting
+                            ? const SizedBox(
+                                width: 18,
+                                height: 18,
+                                child: CircularProgressIndicator(strokeWidth: 2))
+                            : Text(l10n.vendorAdd),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+            Padding(
+              padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
+              child: Text(l10n.vendorRequests,
+                  style: Theme.of(context).textTheme.titleMedium),
+            ),
+            if (items.isEmpty)
+              Padding(
+                padding: const EdgeInsets.all(24),
+                child: Center(child: Text(l10n.vendorEmpty)),
+              )
+            else
+              for (final r in items) _VendorRequestTile(request: r),
+            const SizedBox(height: 16),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _SignupView extends StatelessWidget {
+  const _SignupView({required this.submitting, required this.onSignup});
+
+  final bool submitting;
+  final VoidCallback onSignup;
+
+  @override
+  Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context);
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.all(32),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            const Icon(Icons.storefront, size: 64, color: AppColors.green),
+            const SizedBox(height: 16),
+            Text(l10n.vendorSignupTitle,
+                style: Theme.of(context).textTheme.headlineSmall),
+            const SizedBox(height: 24),
+            FilledButton(
+              onPressed: submitting ? null : onSignup,
+              child: submitting
+                  ? const SizedBox(
+                      width: 18,
+                      height: 18,
+                      child: CircularProgressIndicator(strokeWidth: 2))
+                  : Text(l10n.vendorSignup),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _VendorRequestTile extends StatelessWidget {
+  const _VendorRequestTile({required this.request});
+
+  final VendorRequest request;
+
+  @override
+  Widget build(BuildContext context) {
+    return Card(
+      child: ListTile(
+        leading: const Icon(Icons.shopping_basket_outlined),
+        title: Text(request.cropName),
+        subtitle: Text(
+          '${request.quantityNeeded?.toStringAsFixed(0) ?? '—'} kg · '
+          '${money(request.expectedPrice)} · ${request.status}',
+        ),
+      ),
+    );
+  }
+}

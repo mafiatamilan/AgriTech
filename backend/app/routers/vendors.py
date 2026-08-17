@@ -8,7 +8,7 @@ router = APIRouter(prefix="/vendors", tags=["vendors"])
 
 
 class VendorSignupRequest(BaseModel):
-    name: str
+    name: str | None = None
     phone: str | None = None
     email: str | None = None
     business_name: str | None = None
@@ -21,18 +21,19 @@ class VendorRequestCreate(BaseModel):
 
 
 @router.post("/signup")
-async def vendor_signup(req: VendorSignupRequest, current_farmer: dict = Depends(get_current_farmer)):
+async def vendor_signup(req: VendorSignupRequest | None = None, current_farmer: dict = Depends(get_current_farmer)):
     sb = get_supabase()
+    req = req or VendorSignupRequest()
     resp = sb.table("vendors").select("id").eq("id", current_farmer["id"]).execute()
     if resp.data:
         raise HTTPException(status_code=409, detail="Vendor profile already exists")
 
+    name = req.name or current_farmer.get("email") or "Vendor"
     sb.table("vendors").insert({
         "id": current_farmer["id"],
-        "name": req.name,
-        "phone": req.phone,
-        "email": req.email,
-        "business_name": req.business_name,
+        "business_name": req.business_name or name,
+        "contact_email": req.email,
+        "contact_phone": req.phone,
     }).execute()
 
     return {"status": "created", "vendor_id": current_farmer["id"]}

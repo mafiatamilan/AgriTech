@@ -82,8 +82,9 @@ async def receive_hardware_status(
         .eq("device_uid", payload.device_uid).execute()
 
     # Insert event
+    device = sb.table("farm_devices").select("id").eq("device_uid", payload.device_uid).limit(1).execute()
     sb.table("hardware_status_events").insert({
-        "device_uid": payload.device_uid,
+        "farm_device_id": device.data[0]["id"] if device.data else None,
         "event_type": payload.event_type,
         "signal_strength": payload.signal_strength,
         "payload": payload.payload,

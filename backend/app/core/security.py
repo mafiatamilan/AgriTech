@@ -2,6 +2,7 @@ import hashlib
 import hmac
 import time
 import jwt
+from jwt import PyJWKClient
 from fastapi import Depends, HTTPException, Request, status
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from app.core.config import get_settings
@@ -15,14 +16,29 @@ AGENT_TIMESTAMP_HEADER = "X-Timestamp"
 TIMESTAMP_TOLERANCE_SECONDS = 300  # 5 minutes
 
 
+# Supabase projects sign access tokens with ES256; the public key is exposed
+# via the project's JWKS endpoint. HS256 (JWT secret) is kept as a fallback.
+_jwks_client = PyJWKClient(f"{settings.SUPABASE_URL}/auth/v1/.well-known/jwks.json")
+
+
 def decode_jwt(token: str) -> dict:
     try:
-        payload = jwt.decode(
-            token,
-            settings.SUPABASE_JWT_SECRET,
-            algorithms=["HS256"],
-            audience="authenticated",
-        )
+        header = jwt.get_unverified_header(token)
+        if header.get("alg") == "HS256":
+            payload = jwt.decode(
+                token,
+                settings.SUPABASE_JWT_SECRET,
+                algorithms=["HS256"],
+                audience="authenticated",
+            )
+        else:
+            signing_key = _jwks_client.get_signing_key_from_jwt(token)
+            payload = jwt.decode(
+                token,
+                signing_key.key,
+                algorithms=["ES256"],
+                audience="authenticated",
+            )
         return payload
     except jwt.ExpiredSignatureError:
         raise HTTPException(status_code=401, detail="Token expired")
