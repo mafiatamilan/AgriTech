@@ -22,6 +22,12 @@ class MockTable:
         self._filters[col] = val
         return self
 
+    def in_(self, col, vals):
+        return self
+
+    def filter(self, col, op, val):
+        return self
+
     def not_(self):
         return self
 
@@ -32,6 +38,9 @@ class MockTable:
         return self
 
     def limit(self, n):
+        return self
+
+    def execute(self):
         return self
 
     def insert(self, row):

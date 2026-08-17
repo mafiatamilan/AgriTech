@@ -125,7 +125,6 @@ async def accept_opportunity(
         "offered_price": dr.data[0].get("expected_price"),
         "distance_km": None,
         "shelf_life_compatible": True,
-        "match_score": 0.9,
     }
     ins = sb.table("rescue_matches").insert({
         "demand_request_id": request_id,

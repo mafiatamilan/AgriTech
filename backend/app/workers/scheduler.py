@@ -2,6 +2,7 @@ from apscheduler.schedulers.asyncio import AsyncIOScheduler
 from datetime import datetime, timedelta
 from app.db.supabase_client import get_supabase_admin
 from app.services.notification_service import create_notification
+from app.services.hardware_service import queue_hardware_command
 
 SHELF_LIFE_WARNING_HOURS = 24
 
@@ -19,13 +20,7 @@ async def check_irrigation_schedule():
         sb.table("irrigation_events").update({"status": "running", "started_at": now}) \
             .eq("id", event["id"]).execute()
 
-        # Dispatch hardware command
-        device = sb.table("farm_devices").select("device_uid").eq("farm_id", event["farm_id"]).limit(1).execute()
-        if device.data:
-            sb.table("hardware_command_queue").insert({
-                "device_uid": device.data[0]["device_uid"],
-                "action": "on",
-            }).execute()
+        queue_hardware_command(sb, event["farm_id"], "on", event["id"])
 
         farm = sb.table("farms").select("farmer_id").eq("id", event["farm_id"]).execute()
         if farm.data:
@@ -102,11 +97,25 @@ async def check_new_matches():
             )
 
 
+async def run_agent_jobs_per_farm():
+    from app.services.irrigation_agent_service import run_irrigation_decision
+    from app.services.next_season_service import run_next_season
+    from app.services.supervisor_service import run_smart_supervisor
+
+    sb = get_supabase_admin()
+    farms = sb.table("farms").select("id, farmer_id").limit(100).execute()
+    for farm in farms.data or []:
+        await run_irrigation_decision(sb, farm["id"], farm["farmer_id"])
+        await run_next_season(sb, farm["id"])
+        await run_smart_supervisor(sb, farm["id"])
+
+
 def start_scheduler():
     scheduler.add_job(check_irrigation_schedule, "interval", minutes=1, id="irrigation_check")
     scheduler.add_job(check_shelf_life_expiry, "interval", minutes=5, id="shelf_life_check")
     scheduler.add_job(check_shelf_life_warnings, "interval", minutes=10, id="shelf_life_warning")
     scheduler.add_job(check_new_matches, "interval", minutes=2, id="match_check")
+    scheduler.add_job(run_agent_jobs_per_farm, "interval", minutes=15, id="agent_jobs")
     scheduler.start()
 
 

@@ -18,10 +18,19 @@ class MockTable:
         self._filters[col] = val
         return self
 
+    def in_(self, col, vals):
+        return self
+
+    def filter(self, col, op, val):
+        return self
+
     def order(self, col, desc=False):
         return self
 
     def limit(self, n):
+        return self
+
+    def execute(self):
         return self
 
     def insert(self, row):
@@ -36,8 +45,6 @@ class MockTable:
     @property
     def data(self):
         return self._data
-
-
 class MockClient:
     def __init__(self):
         self._tables = {}

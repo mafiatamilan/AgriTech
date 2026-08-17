@@ -45,6 +45,16 @@ class Backend {
   Future<void> motorOn(String farmId) =>
       _api.post('/motor/on', query: {'farm_id': farmId});
 
+  /// Pair an ESP32/LoRa device to a farm. Returns the paired device row
+  /// (secret is stored hashed server-side; never echoed back).
+  Future<PairedDevice> pairDevice(String farmId, String deviceUid, String deviceSecret) async {
+    final json = await _api.post('/farms/$farmId/devices', body: {
+      'device_uid': deviceUid,
+      'device_secret': deviceSecret,
+    });
+    return PairedDevice.fromJson(json as Map<String, dynamic>);
+  }
+
   // ---- market ----
   Future<List<Farm>> getAddressPrompt() async {
     final json = await _api.get('/market/address-prompt');

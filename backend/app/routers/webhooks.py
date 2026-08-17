@@ -1,20 +1,27 @@
 from fastapi import APIRouter, Depends, Request
 from pydantic import BaseModel
-from datetime import datetime
+from datetime import datetime, timezone
 from app.core.security import verify_agent_webhook, verify_hardware_webhook
 from app.db.supabase_client import get_supabase_admin
 from app.services.notification_service import create_notification
+from app.services.hardware_service import acknowledge_commands_for_device
 
 router = APIRouter(prefix="/webhooks", tags=["webhooks"])
 
 
 class AgentResultPayload(BaseModel):
-    crop_image_id: str
+    model_config = {"protected_namespaces": ()}
+
+    crop_image_id: str | None = None
     farm_id: str
     agent_type: str
     result_json: dict
     status: str  # "done" | "failed"
     error: str | None = None
+    field_id: str | None = None
+    image_upload_id: str | None = None
+    model_name: str | None = None
+    model_version: str | None = None
 
 
 class HardwareStatusPayload(BaseModel):
@@ -33,15 +40,23 @@ async def receive_agent_result(
 
     result_resp = sb.table("agent_results").insert({
         "crop_image_id": payload.crop_image_id,
+        "image_upload_id": payload.image_upload_id or payload.crop_image_id,
         "farm_id": payload.farm_id,
+        "field_id": payload.field_id,
         "agent_type": payload.agent_type,
         "result_json": payload.result_json,
+        "model_name": payload.model_name,
+        "model_version": payload.model_version,
     }).execute()
     agent_result_id = result_resp.data[0]["id"] if result_resp.data else None
 
     image_status = "done" if payload.status == "done" else "failed"
-    sb.table("crop_images").update({"analysis_status": image_status}) \
-        .eq("id", payload.crop_image_id).execute()
+    if payload.crop_image_id:
+        update = {"analysis_status": image_status}
+        if payload.status == "failed" and payload.error:
+            update["failure_reason"] = payload.error[:500]
+        sb.table("crop_images").update(update) \
+            .eq("id", payload.crop_image_id).execute()
 
     if payload.status == "done" and payload.agent_type == "health":
         result = payload.result_json
@@ -67,40 +82,67 @@ async def receive_hardware_status(
 ):
     sb = get_supabase_admin()
 
-    now = datetime.utcnow().isoformat()
+    now = datetime.now(timezone.utc).isoformat()
 
-    # Upsert device state
-    update_fields = {"last_seen_at": now}
+    device = sb.table("farm_devices").select("*") \
+        .eq("device_uid", payload.device_uid).limit(1).execute()
+    if not device.data:
+        return {"received": True, "device": None}
+
+    dev = device.data[0]
+
+    update_fields = {
+        "last_seen_at": now,
+        "health_status": payload.payload.get("health_status", "healthy"),
+        "last_error": payload.payload.get("error") or None,
+    }
     if payload.signal_strength is not None:
         update_fields["last_signal_strength"] = payload.signal_strength
     if payload.event_type == "motor_on":
         update_fields["motor_relay_state"] = "on"
     elif payload.event_type == "motor_off":
         update_fields["motor_relay_state"] = "off"
+    for out_key, in_key in (("last_moisture_pct", "moisture_pct"),
+                            ("last_temperature_c", "temperature_c"),
+                            ("last_humidity_pct", "humidity_pct")):
+        if payload.payload.get(in_key) is not None:
+            update_fields[out_key] = payload.payload[in_key]
 
     sb.table("farm_devices").update(update_fields) \
-        .eq("device_uid", payload.device_uid).execute()
+        .eq("id", dev["id"]).execute()
 
-    # Insert event
-    device = sb.table("farm_devices").select("id").eq("device_uid", payload.device_uid).limit(1).execute()
-    sb.table("hardware_status_events").insert({
-        "farm_device_id": device.data[0]["id"] if device.data else None,
+    status_resp = sb.table("hardware_status_events").insert({
+        "farm_device_id": dev["id"],
         "event_type": payload.event_type,
         "signal_strength": payload.signal_strength,
+        "moisture_pct": payload.payload.get("moisture_pct"),
+        "temperature_c": payload.payload.get("temperature_c"),
+        "humidity_pct": payload.payload.get("humidity_pct"),
+        "battery_voltage": payload.payload.get("battery_voltage"),
+        "firmware_version": payload.payload.get("firmware_version"),
         "payload": payload.payload,
     }).execute()
 
-    # Notify farmer on error
+    moisture_pct = payload.payload.get("moisture_pct")
+    if moisture_pct is not None and dev.get("farm_id"):
+        sb.table("sensor_readings").insert({
+            "farm_id": dev["farm_id"],
+            "moisture_pct": moisture_pct,
+            "signal_strength": payload.signal_strength,
+            "recorded_at": now,
+        }).execute()
+
+    if payload.event_type in ("motor_on", "motor_off"):
+        acknowledge_commands_for_device(sb, dev["id"])
+
     if payload.event_type == "error":
-        device = sb.table("farm_devices").select("farm_id").eq("device_uid", payload.device_uid).execute()
-        if device.data:
-            farm = sb.table("farms").select("farmer_id").eq("id", device.data[0]["farm_id"]).execute()
-            if farm.data:
-                error_msg = payload.payload.get("message", "Unknown hardware error")
-                await create_notification(
-                    sb, farm.data[0]["farmer_id"], "system",
-                    "Hardware Error",
-                    f"Device {payload.device_uid}: {error_msg}",
-                )
+        farm = sb.table("farms").select("farmer_id").eq("id", dev["farm_id"]).execute()
+        if farm.data:
+            error_msg = payload.payload.get("message", "Unknown hardware error")
+            await create_notification(
+                sb, farm.data[0]["farmer_id"], "device_status",
+                "Hardware Error",
+                f"Device {payload.device_uid}: {error_msg}",
+            )
 
     return {"received": True}

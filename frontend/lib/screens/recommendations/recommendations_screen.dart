@@ -76,10 +76,29 @@ class _AgentCard extends StatelessWidget {
     if (agent == null) return null;
     final r = agent.resultJson;
     if (r is Map && r.isNotEmpty) {
+      if (agent.agentType == 'health') {
+        final h = HealthResult.fromJson(r);
+        final parts = <String>[
+          if (h.healthStatus != null) h.healthStatus!,
+          if (h.diseasesDetected.isNotEmpty) h.diseasesDetected.join(', '),
+          if (h.recommendation != null) h.recommendation!,
+        ];
+        if (parts.isNotEmpty) return parts.join(' · ');
+      }
+      if (agent.agentType == 'yield') {
+        final y = YieldResult.fromJson(r);
+        final parts = <String>[
+          if (y.cropType != null) y.cropType!,
+          if (y.expectedYieldKg != null) '${y.expectedYieldKg} kg',
+          if (y.confidenceLevel != null) y.confidenceLevel!,
+          if (y.riskFactors.isNotEmpty) y.riskFactors.join(', '),
+        ];
+        if (parts.isNotEmpty) return parts.join(' · ');
+      }
       final parts = <String>[];
       if (r['health_status'] != null) parts.add(r['health_status'].toString());
       if (r['expected_yield_kg'] != null) parts.add('${r['expected_yield_kg']} kg');
-      if (r['confidence'] != null) parts.add('${(r['confidence'] * 100).round()}%');
+      if (r['confidence_level'] != null) parts.add(r['confidence_level'].toString());
       if (parts.isNotEmpty) return parts.join(' · ');
     }
     return 'No data yet.';

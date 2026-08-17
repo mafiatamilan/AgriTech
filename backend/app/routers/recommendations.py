@@ -18,6 +18,9 @@ async def get_recommendations(
     yield_forecasts = sb.table("yield_forecasts").select("*") \
         .eq("farm_id", farm_id).order("created_at", desc=True).limit(5).execute()
 
+    crop_plans = sb.table("crop_plan_recommendations").select("*") \
+        .eq("farm_id", farm_id).order("rank", desc=False).execute()
+
     latest_health = None
     latest_yield = None
     latest_next_season = None
@@ -35,4 +38,5 @@ async def get_recommendations(
         "yield_analysis": latest_yield,
         "next_season_recommendations": latest_next_season,
         "yield_forecasts": yield_forecasts.data,
+        "crop_plan_recommendations": crop_plans.data,
     }

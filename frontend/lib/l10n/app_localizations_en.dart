@@ -87,7 +87,10 @@ class AppLocalizationsEn extends AppLocalizations {
   String get homeSignalStrength => 'LoRa signal';
 
   @override
-  String get homeNoSignal => 'No device reported yet';
+  String get homeNoSignal => 'Device not connected';
+
+  @override
+  String get homeMotorState => 'Motor';
 
   @override
   String get homeNotifications => 'Notifications';
@@ -137,6 +140,27 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get motorSoilMoisture => 'Soil moisture';
+
+  @override
+  String get motorMoistureUnavailable => 'Soil moisture data unavailable';
+
+  @override
+  String get motorStarting => 'Starting irrigation…';
+
+  @override
+  String get motorPairTitle => 'Pair a device';
+
+  @override
+  String get motorPairUid => 'Device UID';
+
+  @override
+  String get motorPairSecret => 'Device secret';
+
+  @override
+  String get motorPair => 'Pair device';
+
+  @override
+  String get motorPaired => 'Device paired';
 
   @override
   String get motorStopCurrent => 'Stop current watering';
@@ -220,6 +244,12 @@ class AppLocalizationsEn extends AppLocalizations {
   String get marketSelectFarm => 'Select a farm';
 
   @override
+  String get marketShelfLifeCompatible => 'Shelf-life compatible';
+
+  @override
+  String get marketShelfLifeUnknown => 'Shelf-life compatibility unknown';
+
+  @override
   String get marketInvalidInput => 'Crop name and harvested date are required';
 
   @override
@@ -244,6 +274,33 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get uploadHealthStatus => 'Health status';
+
+  @override
+  String get uploadCrop => 'Crop';
+
+  @override
+  String get uploadDisease => 'Disease';
+
+  @override
+  String get uploadConfidenceLevel => 'Confidence';
+
+  @override
+  String get uploadSeverity => 'Severity';
+
+  @override
+  String get uploadRecommendation => 'Recommendation';
+
+  @override
+  String get uploadRemedies => 'Remedies';
+
+  @override
+  String get uploadPrevention => 'Prevention';
+
+  @override
+  String get uploadRetake => 'Retake photo';
+
+  @override
+  String get uploadRiskFactors => 'Risk factors';
 
   @override
   String get uploadDiseases => 'Diseases detected';
