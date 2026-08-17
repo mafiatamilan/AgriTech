@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, HTTPException, Depends
 from pydantic import BaseModel
 from app.core.deps import get_current_farmer
 from app.db.supabase_client import get_supabase
@@ -35,3 +35,13 @@ async def update_account(req: AccountUpdate, current_farmer: dict = Depends(get_
     if update_data:
         sb.table("farmers").update(update_data).eq("id", current_farmer["id"]).execute()
     return {"status": "updated"}
+
+
+@router.get("/water-saved")
+async def get_water_saved(current_farmer: dict = Depends(get_current_farmer)):
+    sb = get_supabase()
+    resp = sb.table("farmer_water_saved_totals").select("total_water_saved_liters") \
+        .eq("farmer_id", current_farmer["id"]).execute()
+    if not resp.data:
+        return {"total_water_saved_liters": 0}
+    return {"total_water_saved_liters": resp.data[0]["total_water_saved_liters"]}

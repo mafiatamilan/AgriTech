@@ -19,6 +19,14 @@ async def check_irrigation_schedule():
         sb.table("irrigation_events").update({"status": "running", "started_at": now}) \
             .eq("id", event["id"]).execute()
 
+        # Dispatch hardware command
+        device = sb.table("farm_devices").select("device_uid").eq("farm_id", event["farm_id"]).limit(1).execute()
+        if device.data:
+            sb.table("hardware_command_queue").insert({
+                "device_uid": device.data[0]["device_uid"],
+                "action": "on",
+            }).execute()
+
         farm = sb.table("farms").select("farmer_id").eq("id", event["farm_id"]).execute()
         if farm.data:
             await create_notification(
@@ -40,7 +48,6 @@ async def check_shelf_life_expiry():
     for dr in expired.data:
         sb.table("demand_requests").update({"status": "expired"}) \
             .eq("id", dr["id"]).execute()
-        # Dismiss any expiring-soon notifications for this request
         sb.table("notifications").delete() \
             .eq("related_id", dr["id"]).eq("type", "shelf_life_expiring").execute()
         await create_notification(
@@ -63,7 +70,6 @@ async def check_shelf_life_warnings():
         .gte("shelf_life_expiry", now.isoformat()).limit(20).execute()
 
     for dr in expiring.data:
-        # Duplicate prevention: skip if an unread notification already exists
         existing = sb.table("notifications").select("id") \
             .eq("related_id", dr["id"]) \
             .eq("type", "shelf_life_expiring") \
