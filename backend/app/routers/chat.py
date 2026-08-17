@@ -72,15 +72,30 @@ async def send_message(
     if farm_id:
         readings = sb.table("sensor_readings").select("moisture_pct, recorded_at") \
             .eq("farm_id", farm_id).order("recorded_at", desc=True).limit(5).execute()
-        inventory = sb.table("inventory").select("crop_name, quantity") \
+        inventory = sb.table("inventory").select("crop_name, quantity, status") \
             .eq("farm_id", farm_id).execute()
         health = sb.table("agent_results").select("result_json, created_at") \
             .eq("farm_id", farm_id).eq("agent_type", "health") \
             .order("created_at", desc=True).limit(1).execute()
+        irrigation = sb.table("irrigation_decisions").select("decision, recommended_duration_minutes, created_at") \
+            .eq("farm_id", farm_id).order("created_at", desc=True).limit(3).execute()
+        device = sb.table("farm_devices").select("device_uid, last_signal_strength, motor_relay_state, health_status, last_seen_at") \
+            .eq("farm_id", farm_id).limit(1).execute()
+        weather = sb.table("weather_snapshots").select("*") \
+            .eq("farm_id", farm_id).order("recorded_at", desc=True).limit(1).execute()
+        disease = sb.table("disease_diagnoses").select("predicted_crop, predicted_disease, severity, recommendation") \
+            .eq("farm_id", farm_id).order("created_at", desc=True).limit(1).execute()
+        recommendations = sb.table("crop_plan_recommendations").select("crop, recommendation") \
+            .eq("farm_id", farm_id).order("rank", desc=False).limit(3).execute()
         farm_context = {
             "recent_readings": readings.data,
             "inventory": inventory.data,
             "latest_health": health.data[0] if health.data else None,
+            "recent_irrigation_decisions": irrigation.data,
+            "hardware_status": device.data[0] if device.data else None,
+            "latest_weather": weather.data[0] if weather.data else None,
+            "latest_disease_result": disease.data[0] if disease.data else None,
+            "recommendations": recommendations.data,
         }
 
     # Get message history
@@ -95,6 +110,7 @@ async def send_message(
         "session_id": session_id,
         "role": "assistant",
         "content": reply,
+        "agent_context_json": farm_context,
     }).execute()
 
     return {"role": "assistant", "content": reply}

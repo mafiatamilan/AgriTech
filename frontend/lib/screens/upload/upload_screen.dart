@@ -119,6 +119,15 @@ class _PhotoAnalysisState extends ConsumerState<_PhotoAnalysis> {
     }
   }
 
+  Future<void> _retake() async {
+    setState(() {
+      _upload = null;
+      _status = null;
+      _image = null;
+    });
+    await _pick();
+  }
+
   @override
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context);
@@ -153,7 +162,8 @@ class _PhotoAnalysisState extends ConsumerState<_PhotoAnalysis> {
           const SizedBox(height: 8),
           if (_status != null && !_status!.isDone && !_status!.isFailed)
             const LinearProgressIndicator(),
-          if (_status != null) _ResultsView(status: _status!),
+          if (_status != null)
+            _ResultsView(status: _status!, onRetake: _retake),
         ],
       ],
     );
@@ -161,60 +171,138 @@ class _PhotoAnalysisState extends ConsumerState<_PhotoAnalysis> {
 }
 
 class _ResultsView extends StatelessWidget {
-  const _ResultsView({required this.status});
+  const _ResultsView({
+    required this.status,
+    required this.onRetake,
+  });
 
   final AnalysisStatus status;
+  final VoidCallback onRetake;
 
   @override
   Widget build(BuildContext context) {
-    final l10n = AppLocalizations.of(context);
-    final health =
+    final healthResults =
         status.results.where((r) => r.agentType == 'health').toList();
     final yieldR =
         status.results.where((r) => r.agentType == 'yield').toList();
+    final health = healthResults.isEmpty
+        ? null
+        : HealthResult.fromJson(healthResults.first.resultJson);
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         if (status.isFailed)
           const Card(child: ListTile(title: Text('Analysis failed.'))),
-        if (health.isNotEmpty)
-          Card(
-            child: Padding(
-              padding: const EdgeInsets.all(16),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(l10n.uploadHealthStatus,
-                      style: Theme.of(context).textTheme.titleSmall),
-                  Text(health.first.resultJson?['health_status']?.toString() ?? '—'),
-                  if (health.first.resultJson?['diseases_detected'] is List &&
-                      (health.first.resultJson?['diseases_detected'] as List).isNotEmpty)
-                    ...[
-                      const SizedBox(height: 8),
-                      Text(l10n.uploadDiseases),
-                      for (final d
-                          in health.first.resultJson['diseases_detected'] as List)
-                        Text('• $d'),
-                    ],
-                ],
-              ),
-            ),
-          ),
+        if (health != null) _HealthCard(health: health, onRetake: onRetake),
         if (yieldR.isNotEmpty)
-          Card(
-            child: ListTile(
-              leading: const Icon(Icons.eco_outlined),
-              title: Text(l10n.uploadYieldEstimate),
-              subtitle: Text(
-                '${yieldR.first.resultJson?['expected_yield_kg'] ?? '—'} kg · '
-                '${yieldR.first.resultJson?['crop_type'] ?? ''}',
-              ),
-            ),
-          ),
+          _YieldCard(yield: YieldResult.fromJson(yieldR.first.resultJson)),
       ],
     );
   }
+}
+
+class _HealthCard extends StatelessWidget {
+  const _HealthCard({required this.health, required this.onRetake});
+
+  final HealthResult health;
+  final VoidCallback onRetake;
+
+  @override
+  Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context);
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(l10n.uploadHealthStatus,
+                style: Theme.of(context).textTheme.titleSmall),
+            Text(health.healthStatus ?? '—'),
+            if (health.crop != null) _row(l10n.uploadCrop, health.crop!),
+            if (health.disease != null)
+              _row(l10n.uploadDisease, health.disease!),
+            if (health.diseasesDetected.isNotEmpty)
+              _row(l10n.uploadDiseases, health.diseasesDetected.join(', ')),
+            if (health.confidenceLevel != null)
+              _row(l10n.uploadConfidenceLevel, health.confidenceLevel!),
+            if (health.severity != null)
+              _row(l10n.uploadSeverity, health.severity!),
+            if (health.recommendation != null)
+              _row(l10n.uploadRecommendation, health.recommendation!),
+            if (health.remedies.isNotEmpty)
+              _row(l10n.uploadRemedies, health.remedies.join(' · ')),
+            if (health.prevention.isNotEmpty)
+              _row(l10n.uploadPrevention, health.prevention.join(' · ')),
+            if (health.retakeImage)
+              Padding(
+                padding: const EdgeInsets.only(top: 8),
+                child: FilledButton.tonalIcon(
+                  onPressed: onRetake,
+                  icon: const Icon(Icons.camera_alt_outlined),
+                  label: Text(l10n.uploadRetake),
+                ),
+              ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _row(String label, String value) => Padding(
+        padding: const EdgeInsets.only(top: 6),
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text('$label: ',
+                style: const TextStyle(fontWeight: FontWeight.w600)),
+            Expanded(child: Text(value)),
+          ],
+        ),
+      );
+}
+
+class _YieldCard extends StatelessWidget {
+  const _YieldCard({required this.yield});
+
+  final YieldResult yield;
+
+  @override
+  Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context);
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(l10n.uploadYieldEstimate,
+                style: Theme.of(context).textTheme.titleSmall),
+            if (yield.cropType != null) _row(l10n.uploadCrop, yield.cropType!),
+            _row(l10n.uploadYieldEstimate,
+                '${yield.expectedYieldKg?.toStringAsFixed(1) ?? '—'} kg'),
+            if (yield.confidenceLevel != null)
+              _row(l10n.uploadConfidenceLevel, yield.confidenceLevel!),
+            if (yield.riskFactors.isNotEmpty)
+              _row(l10n.uploadRiskFactors, yield.riskFactors.join(', ')),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _row(String label, String value) => Padding(
+        padding: const EdgeInsets.only(top: 6),
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text('$label: ',
+                style: const TextStyle(fontWeight: FontWeight.w600)),
+            Expanded(child: Text(value)),
+          ],
+        ),
+      );
 }
 
 // ---------------------------------------------------------------------------
@@ -228,11 +316,14 @@ class _ChatTab extends ConsumerStatefulWidget {
   ConsumerState<_ChatTab> createState() => _ChatTabState();
 }
 
+// Session id persists across tab switches so a chat is never silently lost.
+String? _persistedSessionId;
+
 class _ChatTabState extends ConsumerState<_ChatTab> {
   final _controller = TextEditingController();
   final _scroll = ScrollController();
   final List<ChatMessage> _messages = [];
-  String? _sessionId;
+  String? _sessionId = _persistedSessionId;
   File? _pendingImage;
   bool _sending = false;
 
@@ -268,6 +359,7 @@ class _ChatTabState extends ConsumerState<_ChatTab> {
       _sessionId ??= await ref
           .read(backendProvider)
           .createChatSession(ref.read(farmsProvider).currentFarm?.id);
+      _persistedSessionId = _sessionId;
       final reply = await ref.read(backendProvider).sendChatMessage(
             _sessionId!,
             content: text.isEmpty ? null : text,
@@ -275,6 +367,13 @@ class _ChatTabState extends ConsumerState<_ChatTab> {
           );
       setState(() => _messages.add(reply));
     } on Exception catch (e) {
+      // Retry on failure: drop the failed bubble and restore input so the
+      // farmer can re-send.
+      setState(() {
+        _messages.removeLast();
+        _controller.text = text;
+        _pendingImage = image;
+      });
       if (mounted) showError(context, e);
     } finally {
       if (mounted) setState(() => _sending = false);

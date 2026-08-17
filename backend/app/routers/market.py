@@ -13,6 +13,13 @@ class ExtendShelfLifeRequest(BaseModel):
     additional_days: int
 
 
+def _strip(match: dict) -> dict:
+    # ponytail: internal match_score kept in DB, never shown to farmer
+    if isinstance(match, dict):
+        match.pop("match_score", None)
+    return match
+
+
 @router.get("/address-prompt")
 async def address_prompt(current_farmer: dict = Depends(get_current_farmer)):
     sb = get_supabase()
@@ -45,21 +52,20 @@ async def crop_match(
     resp = sb.table("demand_requests").insert(row).execute()
     demand_request = resp.data[0]
 
-    matches = await run_demand_matching(demand_request)
+    # Candidates are listed for the farmer to choose from; the request stays
+    # "open" until a match is confirmed or a vendor accepts.
+    matches = [_strip(m) for m in await run_demand_matching(demand_request, sb)][:3]
 
-    if matches:
-        sb.table("demand_requests").update({"status": "matched"}) \
-            .eq("id", demand_request["id"]).execute()
-        for match in matches:
-            sb.table("rescue_matches").insert({
-                "demand_request_id": demand_request["id"],
-                "matched_buyer_info": match,
-            }).execute()
+    for match in matches:
+        sb.table("rescue_matches").insert({
+            "demand_request_id": demand_request["id"],
+            "matched_buyer_info": match,
+        }).execute()
 
     return CropMatchResponse(
         demand_request_id=demand_request["id"],
         matches=matches,
-        status="matched" if matches else "open",
+        status="open",
     )
 
 
@@ -84,7 +90,11 @@ async def list_requests(current_farmer: dict = Depends(get_current_farmer)):
         by_request.setdefault(m["demand_request_id"], []).append(m)
 
     for r in requests:
-        r["matches"] = by_request.get(r["id"], [])
+        r["matches"] = []
+        for m in by_request.get(r["id"], []):
+            if isinstance(m.get("matched_buyer_info"), dict):
+                m["matched_buyer_info"] = _strip(dict(m["matched_buyer_info"]))
+            r["matches"].append(m)
     return requests
 
 
@@ -114,15 +124,12 @@ async def extend_shelf_life(
     sb.table("notifications").delete() \
         .eq("related_id", request_id).eq("type", "shelf_life_expiring").execute()
 
-    matches = await run_demand_matching(dr)
-    if matches:
-        sb.table("demand_requests").update({"status": "matched"}) \
-            .eq("id", request_id).execute()
-        for match in matches:
-            sb.table("rescue_matches").insert({
-                "demand_request_id": request_id,
-                "matched_buyer_info": match,
-            }).execute()
+    matches = [_strip(m) for m in await run_demand_matching(dr, sb)][:3]
+    for match in matches:
+        sb.table("rescue_matches").insert({
+            "demand_request_id": request_id,
+            "matched_buyer_info": match,
+        }).execute()
 
     return {"request_id": request_id, "new_expiry": new_expiry.isoformat(), "matches": matches}
 

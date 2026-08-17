@@ -45,6 +45,7 @@ class _MotorScreenState extends ConsumerState<MotorScreen> {
                         farmId, l10n.motorCancelNext,
                         () => ref.read(backendProvider).cancelNext(farmId)),
                     onMotorOn: () => _motorOn(farmId),
+                    onPairDevice: () => _pairDevice(farmId),
                   ),
                 ],
               ),
@@ -85,12 +86,81 @@ class _MotorScreenState extends ConsumerState<MotorScreen> {
   }
 
   Future<void> _motorOn(String farmId) async {
-    // Optimistic disable: the relay flips asynchronously via the
-    // hardware command-dispatch path.
+    final l10n = AppLocalizations.of(context);
+    // The relay flips asynchronously via the hardware command-dispatch path.
+    // Show a pending state; the status card flips to ON only once the
+    // hardware acknowledges (motor_relay_state / running event).
     setState(() => _motorOnBusy = true);
-    await _action(farmId, 'Motor ON', () => ref.read(backendProvider).motorOn(farmId));
-    await Future<void>.delayed(const Duration(seconds: 3));
-    if (mounted) setState(() => _motorOnBusy = false);
+    try {
+      await ref.read(backendProvider).motorOn(farmId);
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(l10n.motorStarting)),
+        );
+      }
+      ref.invalidate(motorStatusProvider(farmId));
+    } on Exception catch (e) {
+      if (mounted) showError(context, e);
+    } finally {
+      if (mounted) setState(() => _motorOnBusy = false);
+    }
+  }
+
+  Future<void> _pairDevice(String farmId) async {
+    final l10n = AppLocalizations.of(context);
+    final uidCtl = TextEditingController();
+    final secretCtl = TextEditingController();
+    final paired = await showDialog<({String uid, String secret})>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: Text(l10n.motorPairTitle),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            TextField(
+              controller: uidCtl,
+              autofocus: true,
+              decoration: InputDecoration(labelText: l10n.motorPairUid),
+            ),
+            const SizedBox(height: 8),
+            TextField(
+              controller: secretCtl,
+              obscureText: true,
+              decoration: InputDecoration(labelText: l10n.motorPairSecret),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(),
+            child: Text(l10n.commonCancel),
+          ),
+          FilledButton(
+            onPressed: () {
+              final uid = uidCtl.text.trim();
+              final secret = secretCtl.text.trim();
+              if (uid.isEmpty || secret.isEmpty) return;
+              Navigator.of(context).pop((uid: uid, secret: secret));
+            },
+            child: Text(l10n.motorPair),
+          ),
+        ],
+      ),
+    );
+    if (paired == null || !mounted) return;
+    try {
+      await ref
+          .read(backendProvider)
+          .pairDevice(farmId, paired.uid, paired.secret);
+      ref.invalidate(motorStatusProvider(farmId));
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(l10n.motorPaired)),
+        );
+      }
+    } on Exception catch (e) {
+      if (mounted) showError(context, e);
+    }
   }
 }
 
@@ -102,7 +172,8 @@ class _StatusCards extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context);
-    final isRunning = status.currentStatus != null;
+    final isRunning =
+        status.motorRelayState == true || status.currentStatus != null;
     return Card(
       child: Column(
         children: [
@@ -164,7 +235,13 @@ class _MoistureCard extends StatelessWidget {
             Text(l10n.motorSoilMoisture,
                 style: Theme.of(context).textTheme.titleMedium),
             const SizedBox(height: 8),
-            moistureLineChart(status.moistureReadings),
+            if (status.moistureReadings.isEmpty)
+              Text(
+                l10n.motorMoistureUnavailable,
+                style: Theme.of(context).textTheme.bodyMedium,
+              )
+            else
+              moistureLineChart(status.moistureReadings),
           ],
         ),
       ),
@@ -179,6 +256,7 @@ class _ActionsCard extends StatelessWidget {
     required this.onStop,
     required this.onCancelNext,
     required this.onMotorOn,
+    required this.onPairDevice,
   });
 
   final MotorStatus status;
@@ -186,6 +264,7 @@ class _ActionsCard extends StatelessWidget {
   final VoidCallback onStop;
   final VoidCallback onCancelNext;
   final VoidCallback onMotorOn;
+  final VoidCallback onPairDevice;
 
   @override
   Widget build(BuildContext context) {
@@ -218,6 +297,14 @@ class _ActionsCard extends StatelessWidget {
               icon: const Icon(Icons.power),
               label: Text(l10n.motorOn),
               style: FilledButton.styleFrom(
+                  minimumSize: const Size.fromHeight(44)),
+            ),
+            const SizedBox(height: 8),
+            OutlinedButton.icon(
+              onPressed: onPairDevice,
+              icon: const Icon(Icons.link),
+              label: Text(l10n.motorPair),
+              style: OutlinedButton.styleFrom(
                   minimumSize: const Size.fromHeight(44)),
             ),
           ],

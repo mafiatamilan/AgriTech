@@ -1,20 +1,19 @@
 """
 Yield Prediction Agent — stub implementation.
 
-Input:  image URL + sensor history
-Output: forecasted yield (kg), confidence (0-1)
+Input:  image URL + sensor history (+ optional crop hint)
+Output: forecasted yield shape per the AI-agent storage contract
+        {crop_type, expected_yield_kg, confidence_level, risk_factors}
 
-TODO: Plug in real vision + regression model
+TODO: Plug in real vision + regression model without changing this shape.
 """
 
-from datetime import datetime
 
-
-async def run_yield_prediction(image_url: str, sensor_history: list[dict]) -> dict:
+async def run_yield_prediction(image_url: str, sensor_history: list[dict], crop_hint: str | None = None) -> dict:
+    crop = (crop_hint or "unknown").strip().lower()
     return {
-        "expected_yield_kg": 1250.0,
-        "confidence": 0.78,
-        "crop_type": "estimated",
-        "note": "stub — replace with real ML inference",
-        "analyzed_at": datetime.utcnow().isoformat(),
+        "crop_type": crop,
+        "expected_yield_kg": 420.0,
+        "confidence_level": "medium",
+        "risk_factors": [],
     }

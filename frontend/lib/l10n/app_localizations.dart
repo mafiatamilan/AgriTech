@@ -253,8 +253,14 @@ abstract class AppLocalizations {
   /// No description provided for @homeNoSignal.
   ///
   /// In en, this message translates to:
-  /// **'No device reported yet'**
+  /// **'Device not connected'**
   String get homeNoSignal;
+
+  /// No description provided for @homeMotorState.
+  ///
+  /// In en, this message translates to:
+  /// **'Motor'**
+  String get homeMotorState;
 
   /// No description provided for @homeNotifications.
   ///
@@ -345,6 +351,48 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Soil moisture'**
   String get motorSoilMoisture;
+
+  /// No description provided for @motorMoistureUnavailable.
+  ///
+  /// In en, this message translates to:
+  /// **'Soil moisture data unavailable'**
+  String get motorMoistureUnavailable;
+
+  /// No description provided for @motorStarting.
+  ///
+  /// In en, this message translates to:
+  /// **'Starting irrigation…'**
+  String get motorStarting;
+
+  /// No description provided for @motorPairTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Pair a device'**
+  String get motorPairTitle;
+
+  /// No description provided for @motorPairUid.
+  ///
+  /// In en, this message translates to:
+  /// **'Device UID'**
+  String get motorPairUid;
+
+  /// No description provided for @motorPairSecret.
+  ///
+  /// In en, this message translates to:
+  /// **'Device secret'**
+  String get motorPairSecret;
+
+  /// No description provided for @motorPair.
+  ///
+  /// In en, this message translates to:
+  /// **'Pair device'**
+  String get motorPair;
+
+  /// No description provided for @motorPaired.
+  ///
+  /// In en, this message translates to:
+  /// **'Device paired'**
+  String get motorPaired;
 
   /// No description provided for @motorStopCurrent.
   ///
@@ -496,6 +544,18 @@ abstract class AppLocalizations {
   /// **'Select a farm'**
   String get marketSelectFarm;
 
+  /// No description provided for @marketShelfLifeCompatible.
+  ///
+  /// In en, this message translates to:
+  /// **'Shelf-life compatible'**
+  String get marketShelfLifeCompatible;
+
+  /// No description provided for @marketShelfLifeUnknown.
+  ///
+  /// In en, this message translates to:
+  /// **'Shelf-life compatibility unknown'**
+  String get marketShelfLifeUnknown;
+
   /// No description provided for @marketInvalidInput.
   ///
   /// In en, this message translates to:
@@ -543,6 +603,60 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Health status'**
   String get uploadHealthStatus;
+
+  /// No description provided for @uploadCrop.
+  ///
+  /// In en, this message translates to:
+  /// **'Crop'**
+  String get uploadCrop;
+
+  /// No description provided for @uploadDisease.
+  ///
+  /// In en, this message translates to:
+  /// **'Disease'**
+  String get uploadDisease;
+
+  /// No description provided for @uploadConfidenceLevel.
+  ///
+  /// In en, this message translates to:
+  /// **'Confidence'**
+  String get uploadConfidenceLevel;
+
+  /// No description provided for @uploadSeverity.
+  ///
+  /// In en, this message translates to:
+  /// **'Severity'**
+  String get uploadSeverity;
+
+  /// No description provided for @uploadRecommendation.
+  ///
+  /// In en, this message translates to:
+  /// **'Recommendation'**
+  String get uploadRecommendation;
+
+  /// No description provided for @uploadRemedies.
+  ///
+  /// In en, this message translates to:
+  /// **'Remedies'**
+  String get uploadRemedies;
+
+  /// No description provided for @uploadPrevention.
+  ///
+  /// In en, this message translates to:
+  /// **'Prevention'**
+  String get uploadPrevention;
+
+  /// No description provided for @uploadRetake.
+  ///
+  /// In en, this message translates to:
+  /// **'Retake photo'**
+  String get uploadRetake;
+
+  /// No description provided for @uploadRiskFactors.
+  ///
+  /// In en, this message translates to:
+  /// **'Risk factors'**
+  String get uploadRiskFactors;
 
   /// No description provided for @uploadDiseases.
   ///

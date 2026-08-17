@@ -120,19 +120,46 @@ class _SignalCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context);
-    final signal = provider.value?.data.signalStrength;
+    final result = provider.value;
+    final signal = result?.data.signalStrength;
+    final relay = result?.data.motorRelayState;
+    final isRunning = result?.data.currentStatus != null;
     return Card(
-      child: ListTile(
-        leading: const Icon(Icons.sensors),
-        title: Text(l10n.homeSignalStrength),
-        subtitle: Text(
-          signal == null
-              ? l10n.homeNoSignal
-              : '${signal < 0 ? signal : -signal} dBm',
-          style: TextStyle(
-            color: signal == null ? Colors.grey : _signalColor(signal),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          if (result?.fromCache ?? false)
+            StaleBanner(savedAt: result!.savedAt!),
+          ListTile(
+            leading: const Icon(Icons.sensors),
+            title: Text(l10n.homeSignalStrength),
+            subtitle: Text(
+              signal == null
+                  ? l10n.homeNoSignal
+                  : '${signal < 0 ? signal : -signal} dBm',
+              style: TextStyle(
+                color: signal == null ? Colors.grey : _signalColor(signal),
+              ),
+            ),
           ),
-        ),
+          const Divider(height: 1),
+          ListTile(
+            leading: Icon(
+              relay == true || isRunning
+                  ? Icons.power
+                  : Icons.power_off_outlined,
+              color: relay == true || isRunning ? Colors.blue : null,
+            ),
+            title: Text(l10n.homeMotorState),
+            subtitle: Text(
+              relay == true
+                  ? l10n.motorRunning
+                  : relay == false
+                      ? l10n.motorIdle
+                      : l10n.homeNoSignal,
+            ),
+          ),
+        ],
       ),
     );
   }

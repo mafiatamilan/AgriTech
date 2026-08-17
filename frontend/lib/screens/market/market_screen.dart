@@ -354,11 +354,21 @@ class _MatchResultCard extends StatelessWidget {
                       leading: const Icon(Icons.storefront),
                       title: Text(m.buyerName),
                       subtitle: Text(
-                        '${money(m.offeredPrice)} · ${m.distanceKm?.toStringAsFixed(1)} km',
+                        '${money(m.offeredPrice)} · '
+                        '${m.distanceKm?.toStringAsFixed(1) ?? '—'} km',
                       ),
-                      trailing: m.matchScore != null
-                          ? Text('${(m.matchScore! * 100).round()}%')
-                          : null,
+                      trailing: Text(
+                        m.shelfLifeCompatible == null
+                            ? l10n.marketShelfLifeUnknown
+                            : m.shelfLifeCompatible!
+                                ? l10n.marketShelfLifeCompatible
+                                : l10n.marketShelfLifeUnknown,
+                        style: TextStyle(
+                          color: m.shelfLifeCompatible == true
+                              ? Colors.green.shade700
+                              : Colors.grey,
+                        ),
+                      ),
                     ),
                 ],
               ),

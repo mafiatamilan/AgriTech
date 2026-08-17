@@ -114,15 +114,19 @@ class MotorStatus {
   factory MotorStatus.fromJson(Map<String, dynamic> json) => MotorStatus(
         lastWatered: json['last_watered'] == null
             ? null
-            : IrrigationEvent.fromJson(json['last_watered'] as Map<String, dynamic>),
+            : IrrigationEvent.fromJson(
+                Map<String, dynamic>.from(json['last_watered'] as Map)),
         nextWatering: json['next_watering'] == null
             ? null
-            : IrrigationEvent.fromJson(json['next_watering'] as Map<String, dynamic>),
+            : IrrigationEvent.fromJson(
+                Map<String, dynamic>.from(json['next_watering'] as Map)),
         currentStatus: json['current_status'] == null
             ? null
-            : IrrigationEvent.fromJson(json['current_status'] as Map<String, dynamic>),
+            : IrrigationEvent.fromJson(
+                Map<String, dynamic>.from(json['current_status'] as Map)),
         moistureReadings: (json['moisture_readings'] as List? ?? [])
-            .map((e) => MoistureReading.fromJson(e as Map<String, dynamic>))
+            .map((e) =>
+                MoistureReading.fromJson(Map<String, dynamic>.from(e as Map)))
             .toList(),
         signalStrength: json['signal_strength'] as int?,
         motorRelayState: json['motor_relay_state'] as bool?,
@@ -312,6 +316,18 @@ class CropImageUpload {
   final String analysisStatus;
 }
 
+class PairedDevice {
+  PairedDevice({required this.id, this.deviceUid});
+
+  factory PairedDevice.fromJson(Map<String, dynamic> json) => PairedDevice(
+        id: json['id'] as String,
+        deviceUid: json['device_uid'] as String?,
+      );
+
+  final String id;
+  final String? deviceUid;
+}
+
 class AgentResult {
   AgentResult({required this.agentType, this.resultJson, this.createdAt});
 
@@ -348,6 +364,78 @@ class AnalysisStatus {
 
   bool get isDone => analysisStatus == 'done';
   bool get isFailed => analysisStatus == 'failed';
+}
+
+/// Typed view over a health agent's `result_json` (backend contract, §3).
+class HealthResult {
+  HealthResult({
+    this.healthStatus,
+    this.crop,
+    this.disease,
+    this.diseasesDetected = const [],
+    this.confidenceLevel,
+    this.severity,
+    this.recommendation,
+    this.remedies = const [],
+    this.prevention = const [],
+    this.retakeImage = false,
+  });
+
+  factory HealthResult.fromJson(dynamic json) {
+    if (json is! Map<String, dynamic>) return HealthResult();
+    List<String> strList(dynamic v) =>
+        v is List ? v.whereType<String>().toList() : <String>[];
+    return HealthResult(
+      healthStatus: json['health_status']?.toString(),
+      crop: json['crop']?.toString(),
+      disease: json['disease']?.toString(),
+      diseasesDetected: strList(json['diseases_detected']),
+      confidenceLevel: json['confidence_level']?.toString(),
+      severity: json['severity']?.toString(),
+      recommendation: json['recommendation']?.toString(),
+      remedies: strList(json['remedies']),
+      prevention: strList(json['prevention']),
+      retakeImage: json['retake_image'] as bool? ?? false,
+    );
+  }
+
+  final String? healthStatus;
+  final String? crop;
+  final String? disease;
+  final List<String> diseasesDetected;
+  final String? confidenceLevel;
+  final String? severity;
+  final String? recommendation;
+  final List<String> remedies;
+  final List<String> prevention;
+  final bool retakeImage;
+}
+
+/// Typed view over a yield agent's `result_json` (backend contract, §3).
+class YieldResult {
+  YieldResult({
+    this.cropType,
+    this.expectedYieldKg,
+    this.confidenceLevel,
+    this.riskFactors = const [],
+  });
+
+  factory YieldResult.fromJson(dynamic json) {
+    if (json is! Map<String, dynamic>) return YieldResult();
+    return YieldResult(
+      cropType: json['crop_type']?.toString(),
+      expectedYieldKg: _num(json['expected_yield_kg']),
+      confidenceLevel: json['confidence_level']?.toString(),
+      riskFactors: json['risk_factors'] is List
+          ? json['risk_factors'].whereType<String>().toList()
+          : <String>[],
+    );
+  }
+
+  final String? cropType;
+  final double? expectedYieldKg;
+  final String? confidenceLevel;
+  final List<String> riskFactors;
 }
 
 class ChatMessage {

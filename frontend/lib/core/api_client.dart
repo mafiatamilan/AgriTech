@@ -95,6 +95,10 @@ class ApiClient {
       if (token != null) {
         response = await call().timeout(_timeout);
       }
+      if (response.statusCode == 401) {
+        // Still unauthorized after the refresh — back to the login screen.
+        await supabase.auth.signOut();
+      }
     }
     return _decode(response);
   }

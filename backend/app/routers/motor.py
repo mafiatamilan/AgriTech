@@ -1,10 +1,12 @@
-from datetime import datetime
-from fastapi import APIRouter, HTTPException, Depends, Query
-from pydantic import BaseModel
+from datetime import datetime, timezone
+import hashlib
+
+from fastapi import APIRouter, HTTPException, Depends, Query, Request, Response
 from app.core.deps import get_current_farmer
 from app.core.config import get_settings
 from app.db.supabase_client import get_supabase, get_supabase_admin
 from app.services.irrigation_service import IrrigationService
+from app.services.hardware_service import queue_hardware_command
 
 settings = get_settings()
 router = APIRouter(prefix="/motor", tags=["motor"])
@@ -19,7 +21,7 @@ async def motor_status(
     svc = IrrigationService(sb)
 
     last = sb.table("irrigation_events").select("*") \
-        .eq("farm_id", farm_id).eq("status", "completed") \
+        .eq("farm_id", farm_id).in_("status", ["completed", "stopped"]) \
         .order("stopped_at", desc=True).limit(1).execute()
 
     next_event = sb.table("irrigation_events").select("*") \
@@ -32,16 +34,19 @@ async def motor_status(
     readings = sb.table("sensor_readings").select("*") \
         .eq("farm_id", farm_id).order("recorded_at", desc=True).limit(24).execute()
 
-    # Include device info
     device = sb.table("farm_devices").select("device_uid, last_signal_strength, motor_relay_state, last_seen_at") \
         .eq("farm_id", farm_id).limit(1).execute()
+
+    device_row = device.data[0] if device.data else None
 
     return {
         "last_watered": last.data[0] if last.data else None,
         "next_watering": next_event.data[0] if next_event.data else None,
         "current_status": running.data[0] if running.data else None,
         "moisture_readings": list(reversed(readings.data)),
-        "device": device.data[0] if device.data else None,
+        "signal_strength": device_row["last_signal_strength"] if device_row else None,
+        "motor_relay_state": (device_row["motor_relay_state"] == "on") if device_row else False,
+        "device": device_row,
     }
 
 
@@ -50,9 +55,8 @@ async def stop_current(farm_id: str = Query(...), current_farmer: dict = Depends
     sb = get_supabase()
     svc = IrrigationService(sb)
     result = await svc.stop_current(farm_id)
-    # Queue off command if device exists
     if result.get("status") == "stopped":
-        _queue_command(sb, farm_id, "off")
+        queue_hardware_command(sb, farm_id, "off")
     return result
 
 
@@ -60,8 +64,7 @@ async def stop_current(farm_id: str = Query(...), current_farmer: dict = Depends
 async def cancel_next(farm_id: str = Query(...), current_farmer: dict = Depends(get_current_farmer)):
     sb = get_supabase()
     svc = IrrigationService(sb)
-    result = await svc.cancel_next(farm_id)
-    return result
+    return await svc.cancel_next(farm_id)
 
 
 @router.post("/on")
@@ -70,36 +73,47 @@ async def manual_on(farm_id: str = Query(...), current_farmer: dict = Depends(ge
     svc = IrrigationService(sb)
     result = await svc.manual_on(farm_id)
     if result.get("status") == "running":
-        _queue_command(sb, farm_id, "on")
+        queue_hardware_command(sb, farm_id, "on")
     return result
 
 
 @router.post("/dispatch")
-async def dispatch_command(farm_id: str, action: str = Query(..., regex="^(on|off)$")):
+async def dispatch_command(farm_id: str, action: str = Query(..., pattern="^(on|off)$")):
     sb = get_supabase_admin()
-    _queue_command(sb, farm_id, action)
+    queue_hardware_command(sb, farm_id, action)
     return {"dispatched": True, "action": action}
 
 
-def _queue_command(sb, farm_id: str, action: str):
-    device = sb.table("farm_devices").select("device_uid") \
-        .eq("farm_id", farm_id).limit(1).execute()
-    if device.data:
-        sb.table("hardware_command_queue").insert({
-            "device_uid": device.data[0]["device_uid"],
-            "action": action,
-        }).execute()
-
-
 @router.get("/pending-command")
-async def pending_command(device_uid: str = Query(...)):
+async def pending_command(device_uid: str = Query(...), request: Request = None):
     sb = get_supabase_admin()
-    cmd = sb.table("hardware_command_queue").select("*") \
-        .eq("device_uid", device_uid).is_("delivered_at", "null") \
+
+    device = sb.table("farm_devices").select("id, device_secret_hash") \
+        .eq("device_uid", device_uid).limit(1).execute()
+    if not device.data:
+        raise HTTPException(status_code=404, detail="Device not found")
+
+    secret = request.headers.get("X-Agent-Secret") if request else None
+    if not secret:
+        raise HTTPException(status_code=401, detail="Missing device secret")
+    if hashlib.sha256(secret.encode()).hexdigest() != device.data[0]["device_secret_hash"]:
+        raise HTTPException(status_code=401, detail="Invalid device secret")
+
+    cmd = sb.table("mqtt_commands").select("*") \
+        .eq("farm_device_id", device.data[0]["id"]) \
+        .in_("publish_status", ["pending", "sent"]) \
         .order("issued_at", desc=False).limit(1).execute()
+
     if not cmd.data:
-        raise HTTPException(status_code=204, detail="No pending commands")
-    # Mark as delivered
-    sb.table("hardware_command_queue").update({"delivered_at": datetime.utcnow().isoformat()}) \
-        .eq("id", cmd.data[0]["id"]).execute()
-    return {"action": cmd.data[0]["action"], "issued_at": cmd.data[0]["issued_at"]}
+        return Response(status_code=204)
+
+    command = cmd.data[0]
+    sb.table("mqtt_commands").update({
+        "publish_status": "sent",
+        "sent_at": datetime.now(timezone.utc).isoformat(),
+    }).eq("id", command["id"]).execute()
+
+    return {
+        "action": command["payload"].get("action", "status_request"),
+        "issued_at": command["issued_at"],
+    }

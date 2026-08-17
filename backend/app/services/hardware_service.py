@@ -1,0 +1,33 @@
+"""Hardware command queueing.
+
+The MVP transport is HTTP polling: the ESP32 polls `GET /motor/pending-command`
+and the backend writes to the `mqtt_commands` table (canonical/audit). No MQTT
+broker is required.
+"""
+
+from datetime import datetime
+
+
+def queue_hardware_command(sb, farm_id: str, action: str, irrigation_event_id: str | None = None) -> dict | None:
+    device = sb.table("farm_devices").select("id, device_uid") \
+        .eq("farm_id", farm_id).limit(1).execute()
+    if not device.data:
+        return None
+    d = device.data[0]
+    resp = sb.table("mqtt_commands").insert({
+        "farm_id": farm_id,
+        "farm_device_id": d["id"],
+        "irrigation_event_id": irrigation_event_id,
+        "command_type": "motor_on" if action == "on" else "motor_off",
+        "payload": {"action": action},
+        "publish_status": "pending",
+    }).execute()
+    return resp.data[0] if resp.data else None
+
+
+def acknowledge_commands_for_device(sb, device_id: str) -> None:
+    """Mark pending/sent commands as acknowledged once the device confirms."""
+    sb.table("mqtt_commands").update({
+        "publish_status": "acknowledged",
+        "acknowledged_at": datetime.utcnow().isoformat(),
+    }).eq("farm_device_id", device_id).in_("publish_status", ["pending", "sent"]).execute()
