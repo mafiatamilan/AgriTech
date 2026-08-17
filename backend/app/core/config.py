@@ -10,6 +10,9 @@ class Settings(BaseSettings):
     DATABASE_URL: str = ""
     AGENT_WEBHOOK_SECRET: str = ""
     AGENT_DISPATCH_URL: str = "http://localhost:8000/webhooks/agent-result"
+    HARDWARE_COMMAND_SECRET: str = ""
+    LLM_API_KEY: str = ""
+    LLM_API_BASE_URL: str = ""
 
     model_config = {"env_file": ".env", "env_file_encoding": "utf-8"}
 

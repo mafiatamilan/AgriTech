@@ -37,8 +37,11 @@ async def get_current_farmer(
     return {"id": payload.get("sub"), "email": payload.get("email")}
 
 
-async def verify_agent_webhook(request: Request) -> dict:
-    secret = settings.AGENT_WEBHOOK_SECRET
+async def verify_agent_webhook(
+    request: Request,
+    secret_attr: str = "AGENT_WEBHOOK_SECRET",
+) -> dict:
+    secret = getattr(settings, secret_attr, None)
     if not secret:
         raise HTTPException(status_code=500, detail="Webhook secret not configured")
 
@@ -73,3 +76,7 @@ async def verify_agent_webhook(request: Request) -> dict:
         raise HTTPException(status_code=401, detail="Invalid signature")
 
     return {"method": "hmac_signature"}
+
+
+async def verify_hardware_webhook(request: Request) -> dict:
+    return await verify_agent_webhook(request, secret_attr="HARDWARE_COMMAND_SECRET")

@@ -3,6 +3,7 @@ from fastapi import FastAPI
 from app.routers import (
     auth, farms, motor, market, upload, webhooks,
     recommendations, settings, account, notifications,
+    vendors, chat,
 )
 from app.workers.scheduler import start_scheduler, stop_scheduler
 
@@ -30,6 +31,8 @@ app.include_router(settings.router)
 app.include_router(account.router)
 app.include_router(notifications.router)
 app.include_router(webhooks.router)
+app.include_router(vendors.router)
+app.include_router(chat.router)
 
 
 @app.get("/health")

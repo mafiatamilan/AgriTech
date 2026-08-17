@@ -4,6 +4,7 @@ from app.core.deps import get_current_farmer
 from app.db.supabase_client import get_supabase
 from app.models.market import DemandRequestCreate, CropMatchResponse
 from app.agents.demand_matching import run_demand_matching
+from app.services.notification_service import create_notification
 
 router = APIRouter(prefix="/market", tags=["market"])
 
@@ -108,3 +109,58 @@ async def extend_shelf_life(
             }).execute()
 
     return {"request_id": request_id, "new_expiry": new_expiry.isoformat(), "matches": matches}
+
+
+@router.patch("/matches/{match_id}/confirm")
+async def confirm_match(
+    match_id: str,
+    current_farmer: dict = Depends(get_current_farmer),
+):
+    sb = get_supabase()
+
+    # Get the match
+    match_resp = sb.table("rescue_matches").select("*, demand_requests!inner(farmer_id, crop_name)") \
+        .eq("id", match_id).execute()
+    if not match_resp.data:
+        raise HTTPException(status_code=404, detail="Match not found")
+
+    match = match_resp.data[0]
+    demand_farmer_id = match.get("demand_requests", {}).get("farmer_id") if isinstance(match.get("demand_requests"), dict) else None
+
+    # Fallback: fetch demand_request directly if join didn't work
+    if not demand_farmer_id:
+        dr_resp = sb.table("demand_requests").select("farmer_id, crop_name") \
+            .eq("id", match["demand_request_id"]).execute()
+        if not dr_resp.data:
+            raise HTTPException(status_code=404, detail="Demand request not found")
+        demand_farmer_id = dr_resp.data[0]["farmer_id"]
+
+    if demand_farmer_id != current_farmer["id"]:
+        raise HTTPException(status_code=403, detail="Not authorized to confirm this match")
+
+    from datetime import datetime
+    sb.table("rescue_matches").update({
+        "status": "confirmed",
+        "confirmed_at": datetime.utcnow().isoformat(),
+    }).eq("id", match_id).execute()
+
+    # Mark parent request as matched
+    sb.table("demand_requests").update({"status": "matched"}) \
+        .eq("id", match["demand_request_id"]).execute()
+
+    # Reject/expire other matches for same request
+    sb.table("rescue_matches").update({"status": "rejected"}) \
+        .eq("demand_request_id", match["demand_request_id"]) \
+        .neq("id", match_id).execute()
+
+    # Notify counter-party if buyer info has an identifier
+    buyer_info = match.get("matched_buyer_info", {})
+    if buyer_info.get("buyer_farmer_id"):
+        await create_notification(
+            sb, buyer_info["buyer_farmer_id"], "sale_confirmed",
+            "Sale Confirmed",
+            f"Your purchase has been confirmed",
+            match_id,
+        )
+
+    return {"status": "confirmed", "match_id": match_id}
