@@ -53,6 +53,25 @@ class _MotorScreenState extends ConsumerState<MotorScreen> {
   }
 
   Future<void> _action(String farmId, String verb, Future<void> Function() call) async {
+    final l10n = AppLocalizations.of(context);
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: Text(l10n.motorConfirmTitle),
+        content: Text(l10n.motorConfirmAction(verb)),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(false),
+            child: Text(l10n.commonCancel),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.of(context).pop(true),
+            child: Text(l10n.motorConfirmGo),
+          ),
+        ],
+      ),
+    );
+    if (confirmed != true || !mounted) return;
     try {
       await call();
       ref.invalidate(motorStatusProvider(farmId));

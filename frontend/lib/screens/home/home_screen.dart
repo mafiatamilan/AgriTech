@@ -10,9 +10,10 @@ import '../../widgets/shared.dart';
 import '../notifications/notifications_screen.dart';
 
 class HomeScreen extends ConsumerWidget {
-  const HomeScreen({super.key, required this.onNavigate});
+  const HomeScreen({super.key, required this.onNavigate, required this.onOpenDrawer});
 
   final void Function(int index) onNavigate;
+  final VoidCallback onOpenDrawer;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -33,11 +34,9 @@ class HomeScreen extends ConsumerWidget {
     return Scaffold(
       appBar: AppBar(
         title: Text(l10n.appTitle),
-        leading: Builder(
-          builder: (context) => IconButton(
-            icon: const Icon(Icons.menu),
-            onPressed: () => Scaffold.of(context).openDrawer(),
-          ),
+        leading: IconButton(
+          icon: const Icon(Icons.menu),
+          onPressed: onOpenDrawer,
         ),
       ),
       body: RefreshIndicator(

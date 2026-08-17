@@ -66,10 +66,26 @@ class _VendorHomeScreenState extends ConsumerState<VendorHomeScreen> {
     }
   }
 
+  Future<void> _accept(String requestId) async {
+    final l10n = AppLocalizations.of(context);
+    try {
+      await ref.read(backendProvider).vendorAccept(requestId);
+      ref.invalidate(vendorOpportunitiesProvider);
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(l10n.vendorBidPlaced)),
+        );
+      }
+    } on Exception catch (e) {
+      if (mounted) showError(context, e);
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context);
     final requests = ref.watch(vendorRequestsProvider);
+    final opportunities = ref.watch(vendorOpportunitiesProvider);
 
     return Scaffold(
       appBar: AppBar(
@@ -150,6 +166,38 @@ class _VendorHomeScreenState extends ConsumerState<VendorHomeScreen> {
             else
               for (final r in items) _VendorRequestTile(request: r),
             const SizedBox(height: 16),
+            Padding(
+              padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
+              child: Text(l10n.vendorOpportunities,
+                  style: Theme.of(context).textTheme.titleMedium),
+            ),
+            opportunities.when(
+              loading: () => const Padding(
+                padding: EdgeInsets.all(16),
+                child: Center(child: CircularProgressIndicator()),
+              ),
+              error: (e, _) => Padding(
+                padding: const EdgeInsets.all(8),
+                child: ErrorView(
+                  onRetry: () => ref.invalidate(vendorOpportunitiesProvider),
+                ),
+              ),
+              data: (ops) => ops.isEmpty
+                  ? Padding(
+                      padding: const EdgeInsets.all(16),
+                      child: Center(child: Text(l10n.vendorEmpty)),
+                    )
+                  : Column(
+                      children: [
+                        for (final o in ops)
+                          _OpportunityTile(
+                            opportunity: o,
+                            onAccept: () => _accept(o.id),
+                          ),
+                      ],
+                    ),
+            ),
+            const SizedBox(height: 16),
           ],
         ),
       ),
@@ -207,6 +255,32 @@ class _VendorRequestTile extends StatelessWidget {
         subtitle: Text(
           '${request.quantityNeeded?.toStringAsFixed(0) ?? '—'} kg · '
           '${money(request.expectedPrice)} · ${request.status}',
+        ),
+      ),
+    );
+  }
+}
+
+class _OpportunityTile extends StatelessWidget {
+  const _OpportunityTile({required this.opportunity, required this.onAccept});
+
+  final DemandRequest opportunity;
+  final VoidCallback onAccept;
+
+  @override
+  Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context);
+    return Card(
+      child: ListTile(
+        leading: const Icon(Icons.agriculture_outlined),
+        title: Text(opportunity.cropName),
+        subtitle: Text(
+          '${money(opportunity.expectedPrice)} · '
+          '${opportunity.harvestedDate != null ? fmtDate(opportunity.harvestedDate!) : '—'}',
+        ),
+        trailing: FilledButton.tonal(
+          onPressed: onAccept,
+          child: Text(l10n.vendorAccept),
         ),
       ),
     );

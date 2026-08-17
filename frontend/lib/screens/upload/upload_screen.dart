@@ -132,6 +132,7 @@ class _PhotoAnalysisState extends ConsumerState<_PhotoAnalysis> {
           ),
         const SizedBox(height: 12),
         Row(
+          mainAxisAlignment: MainAxisAlignment.center,
           children: [
             OutlinedButton.icon(
               onPressed: _pick,

@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:geolocator/geolocator.dart';
 
 import '../../l10n/app_localizations.dart';
 import '../../models/models.dart';
@@ -72,29 +71,7 @@ class _MarketScreenState extends ConsumerState<MarketScreen> {
   Future<void> _setAddress(Farm farm) async {
     setState(() => _locating = true);
     try {
-      var permission = await Geolocator.checkPermission();
-      if (permission == LocationPermission.denied) {
-        permission = await Geolocator.requestPermission();
-      }
-      if (permission == LocationPermission.denied ||
-          permission == LocationPermission.deniedForever) {
-        if (mounted) {
-          showError(context, 'Location permission required to set your address.');
-        }
-        return;
-      }
-      final pos = await Geolocator.getCurrentPosition();
-      await ref
-          .read(backendProvider)
-          .updateFarmLocation(farm.id, pos.latitude, pos.longitude);
-      ref.invalidate(marketRequestsProvider);
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('${farm.name}: address set')),
-        );
-      }
-    } on Exception catch (e) {
-      if (mounted) showError(context, e);
+      await setFarmLocation(context, ref, farm);
     } finally {
       if (mounted) setState(() => _locating = false);
     }
@@ -137,6 +114,24 @@ class _MarketScreenState extends ConsumerState<MarketScreen> {
 
   Future<void> _confirmSale(RescueMatch match) async {
     final l10n = AppLocalizations.of(context);
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: Text(l10n.marketConfirmSaleTitle),
+        content: Text(l10n.marketConfirmSaleBody),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(false),
+            child: Text(l10n.commonCancel),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.of(context).pop(true),
+            child: Text(l10n.marketConfirmSale),
+          ),
+        ],
+      ),
+    );
+    if (confirmed != true) return;
     try {
       await ref.read(backendProvider).confirmMatch(match.id);
       ref.invalidate(marketRequestsProvider);

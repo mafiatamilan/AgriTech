@@ -107,6 +107,9 @@ class AppLocalizationsEn extends AppLocalizations {
   String get homeNoFarm => 'No farm yet. Create one to get started.';
 
   @override
+  String get homeCreateFarm => 'Create farm';
+
+  @override
   String get motorLastWatered => 'Last watered';
 
   @override
@@ -114,6 +117,17 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get motorNever => 'Never';
+
+  @override
+  String get motorConfirmTitle => 'Confirm action';
+
+  @override
+  String motorConfirmAction(Object action) {
+    return 'Are you sure you want to $action?';
+  }
+
+  @override
+  String get motorConfirmGo => 'Confirm';
 
   @override
   String get motorRunning => 'Watering now';
@@ -158,7 +172,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get marketHarvestedDate => 'Harvested date';
 
   @override
-  String get marketExpectedPrice => 'Expected price';
+  String get marketExpectedPrice => 'Expected price (per kg)';
 
   @override
   String get marketFindBuyers => 'Find buyers';
@@ -180,6 +194,13 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get marketConfirmSale => 'Confirm sale';
+
+  @override
+  String get marketConfirmSaleTitle => 'Confirm sale?';
+
+  @override
+  String get marketConfirmSaleBody =>
+      'Mark this match as a confirmed sale? Other offers for this crop will be closed.';
 
   @override
   String get marketSaleConfirmed => 'Sale confirmed';
@@ -324,13 +345,22 @@ class AppLocalizationsEn extends AppLocalizations {
   String get vendorQuantity => 'Quantity needed (kg)';
 
   @override
-  String get vendorExpectedPrice => 'Expected price';
+  String get vendorExpectedPrice => 'Expected price (per kg)';
 
   @override
   String get vendorAdd => 'Add';
 
   @override
   String get vendorRequests => 'My requests';
+
+  @override
+  String get vendorOpportunities => 'Crops available from farmers';
+
+  @override
+  String get vendorAccept => 'I\'ll buy this';
+
+  @override
+  String get vendorBidPlaced => 'Interest sent to the farmer';
 
   @override
   String get vendorEmpty => 'No requests yet';
@@ -352,4 +382,26 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get commonLoading => 'Loading…';
+
+  @override
+  String get locationUseMyLocation => 'Use my location';
+
+  @override
+  String get locationDenied =>
+      'Location permission denied — enter your location manually';
+
+  @override
+  String get locationLatitude => 'Latitude';
+
+  @override
+  String get locationLongitude => 'Longitude';
+
+  @override
+  String get locationEnterManually => 'Enter location manually';
+
+  @override
+  String get locationSet => 'Location set';
+
+  @override
+  String get locationInvalid => 'Enter a valid latitude and longitude';
 }
