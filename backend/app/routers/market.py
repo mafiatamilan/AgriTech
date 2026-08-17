@@ -95,7 +95,7 @@ async def extend_shelf_life(
     }).eq("id", request_id).execute()
 
     sb.table("notifications").delete() \
-        .eq("related_id", request_id).eq("type", "match").execute()
+        .eq("related_id", request_id).eq("type", "shelf_life_expiring").execute()
 
     matches = await run_demand_matching(dr)
     if matches:

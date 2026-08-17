@@ -8,6 +8,8 @@ class Settings(BaseSettings):
     SUPABASE_SERVICE_ROLE_KEY: str = ""
     SUPABASE_JWT_SECRET: str = ""
     DATABASE_URL: str = ""
+    AGENT_WEBHOOK_SECRET: str = ""
+    AGENT_DISPATCH_URL: str = "http://localhost:8000/webhooks/agent-result"
 
     model_config = {"env_file": ".env", "env_file_encoding": "utf-8"}
 

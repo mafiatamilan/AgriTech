@@ -1,10 +1,11 @@
 import asyncio
+import httpx
 from fastapi import APIRouter, HTTPException, Depends, UploadFile, File
 from app.core.deps import get_current_farmer
+from app.core.config import get_settings
 from app.db.supabase_client import get_supabase
-from app.agents.crop_health import run_crop_health
-from app.agents.yield_prediction import run_yield_prediction
 
+settings = get_settings()
 router = APIRouter(prefix="/upload", tags=["upload"])
 
 
@@ -30,32 +31,60 @@ async def upload_crop_image(
     }).execute()
     crop_image = resp.data[0]
 
-    asyncio.create_task(_run_agents(crop_image["id"], farm_id, image_url))
+    asyncio.create_task(_dispatch_agents(crop_image["id"], farm_id, image_url))
 
     return {"id": crop_image["id"], "image_url": image_url, "analysis_status": "pending"}
 
 
-async def _run_agents(image_id: str, farm_id: str, image_url: str):
-    sb = get_supabase()
+async def _dispatch_agents(image_id: str, farm_id: str, image_url: str):
+    dispatch_url = settings.AGENT_DISPATCH_URL
+    callback_base = dispatch_url.rsplit("/webhooks", 1)[0] + "/webhooks/agent-result"
+
+    agents = ["crop_health", "yield_prediction"]
+
+    async with httpx.AsyncClient(timeout=10.0) as client:
+        for agent_type in agents:
+            try:
+                await client.post(dispatch_url, json={
+                    "crop_image_id": image_id,
+                    "farm_id": farm_id,
+                    "agent_type": agent_type,
+                    "image_url": image_url,
+                    "callback_url": callback_base,
+                })
+            except httpx.RequestError:
+                # Fallback: run local stub if external service unreachable
+                await _fallback_stub(agent_type, image_id, farm_id, image_url)
+
+
+async def _fallback_stub(agent_type: str, image_id: str, farm_id: str, image_url: str):
+    from app.agents.crop_health import run_crop_health
+    from app.agents.yield_prediction import run_yield_prediction
+    from app.db.supabase_client import get_supabase_admin
+
+    sb = get_supabase_admin()
+
     try:
-        health_result = await run_crop_health(image_url)
+        if agent_type == "crop_health":
+            result = await run_crop_health(image_url)
+        elif agent_type == "yield_prediction":
+            result = await run_yield_prediction(image_url, [])
+        else:
+            return
+
         sb.table("agent_results").insert({
             "crop_image_id": image_id,
             "farm_id": farm_id,
-            "agent_type": "health",
-            "result_json": health_result,
+            "agent_type": agent_type.replace("crop_health", "health").replace("yield_prediction", "yield"),
+            "result_json": result,
         }).execute()
 
-        yield_result = await run_yield_prediction(image_url, [])
-        sb.table("agent_results").insert({
-            "crop_image_id": image_id,
-            "farm_id": farm_id,
-            "agent_type": "yield",
-            "result_json": yield_result,
-        }).execute()
-
-        sb.table("crop_images").update({"analysis_status": "done"}) \
-            .eq("id", image_id).execute()
+        # Check if all agents done for this image
+        results = sb.table("agent_results").select("id") \
+            .eq("crop_image_id", image_id).execute()
+        if len(results.data) >= 2:
+            sb.table("crop_images").update({"analysis_status": "done"}) \
+                .eq("id", image_id).execute()
     except Exception:
         sb.table("crop_images").update({"analysis_status": "failed"}) \
             .eq("id", image_id).execute()
