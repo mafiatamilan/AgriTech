@@ -157,6 +157,21 @@ ENV/
 env.bak/
 venv.bak/
 
+#secrets
+client_secret_152041183747-0f1f0ri9mg7kbbvnojdhtuv0a364fts9.apps.googleusercontent.com.json
+client_secret_152041183747-3mjturk7tju82i43eq7hfqgt9a58891o.apps.googleusercontent.com.json
+
+#md files
+PROMPT_BACKEND.md
+PROMPT_FRONTEND.md
+PROMPT_IOT.md 
+AGENTS.md
+
+
+
+
+
+
 # Spyder project settings
 .spyderproject
 .spyproject

@@ -158,6 +158,11 @@ class FarmController extends Notifier<FarmsState> {
   void select(String farmId) {
     state = FarmsState(farms: state.farms, currentFarmId: farmId);
   }
+
+  Future<void> create(String name) async {
+    final farm = await ref.read(backendProvider).createFarm(name);
+    state = FarmsState(farms: [farm, ...state.farms], currentFarmId: farm.id);
+  }
 }
 
 final farmsProvider = NotifierProvider<FarmController, FarmsState>(
@@ -234,6 +239,10 @@ final accountProvider = FutureProvider<AccountInfo>((ref) {
 
 final vendorRequestsProvider = FutureProvider<List<VendorRequest>>((ref) {
   return ref.watch(backendProvider).vendorGetRequests();
+});
+
+final vendorOpportunitiesProvider = FutureProvider<List<DemandRequest>>((ref) {
+  return ref.watch(backendProvider).vendorOpportunities();
 });
 
 // ---------------------------------------------------------------------------

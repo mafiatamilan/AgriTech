@@ -23,8 +23,11 @@ class AppShell extends ConsumerStatefulWidget {
 
 class _AppShellState extends ConsumerState<AppShell> {
   int _index = 0;
+  final _scaffoldKey = GlobalKey<ScaffoldState>();
 
   void _go(int i) => setState(() => _index = i);
+
+  void _openDrawer() => _scaffoldKey.currentState?.openDrawer();
 
   @override
   Widget build(BuildContext context) {
@@ -32,7 +35,7 @@ class _AppShellState extends ConsumerState<AppShell> {
     ref.watch(realtimeController);
     final l10n = AppLocalizations.of(context);
     final pages = <Widget>[
-      HomeScreen(onNavigate: _go),
+      HomeScreen(onNavigate: _go, onOpenDrawer: _openDrawer),
       const MotorScreen(),
       const MarketScreen(),
       const UploadScreen(),
@@ -42,6 +45,7 @@ class _AppShellState extends ConsumerState<AppShell> {
     ];
 
     return Scaffold(
+      key: _scaffoldKey,
       drawer: _buildDrawer(context, l10n),
       body: IndexedStack(index: _index, children: pages),
       bottomNavigationBar: NavigationBar(

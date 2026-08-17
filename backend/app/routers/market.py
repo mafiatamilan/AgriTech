@@ -69,7 +69,23 @@ async def list_requests(current_farmer: dict = Depends(get_current_farmer)):
     resp = sb.table("demand_requests").select("*") \
         .eq("farmer_id", current_farmer["id"]) \
         .order("created_at", desc=True).execute()
-    return resp.data
+
+    requests = resp.data or []
+    if not requests:
+        return requests
+
+    ids = [r["id"] for r in requests]
+    matches = sb.table("rescue_matches").select("*") \
+        .in_("demand_request_id", ids) \
+        .order("matched_at", desc=True).execute()
+
+    by_request: dict[str, list] = {}
+    for m in matches.data or []:
+        by_request.setdefault(m["demand_request_id"], []).append(m)
+
+    for r in requests:
+        r["matches"] = by_request.get(r["id"], [])
+    return requests
 
 
 @router.patch("/{request_id}/extend-shelf-life")

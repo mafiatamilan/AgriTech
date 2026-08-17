@@ -24,6 +24,11 @@ class Backend {
     return json.map((e) => Farm.fromJson(e as Map<String, dynamic>)).toList();
   }
 
+  Future<Farm> createFarm(String name) async {
+    final json = await _api.post('/farms', body: {'name': name});
+    return Farm.fromJson(json as Map<String, dynamic>);
+  }
+
   // ---- motor ----
   /// Raw JSON (also cached offline, so we keep the source map).
   Future<Map<String, dynamic>> getMotorStatusJson(String farmId) async {
@@ -194,6 +199,16 @@ class Backend {
         'quantity_needed': quantityNeeded,
         'expected_price': expectedPrice,
       });
+
+  Future<List<DemandRequest>> vendorOpportunities() async {
+    final json = await _api.get('/vendors/opportunities') as List;
+    return json
+        .map((e) => DemandRequest.fromJson(e as Map<String, dynamic>))
+        .toList();
+  }
+
+  Future<void> vendorAccept(String requestId) =>
+      _api.post('/vendors/opportunities/$requestId/accept');
 }
 
 class OfflineResult<T> {

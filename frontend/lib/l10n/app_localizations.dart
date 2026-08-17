@@ -286,6 +286,12 @@ abstract class AppLocalizations {
   /// **'No farm yet. Create one to get started.'**
   String get homeNoFarm;
 
+  /// No description provided for @homeCreateFarm.
+  ///
+  /// In en, this message translates to:
+  /// **'Create farm'**
+  String get homeCreateFarm;
+
   /// No description provided for @motorLastWatered.
   ///
   /// In en, this message translates to:
@@ -303,6 +309,24 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Never'**
   String get motorNever;
+
+  /// No description provided for @motorConfirmTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Confirm action'**
+  String get motorConfirmTitle;
+
+  /// No description provided for @motorConfirmAction.
+  ///
+  /// In en, this message translates to:
+  /// **'Are you sure you want to {action}?'**
+  String motorConfirmAction(Object action);
+
+  /// No description provided for @motorConfirmGo.
+  ///
+  /// In en, this message translates to:
+  /// **'Confirm'**
+  String get motorConfirmGo;
 
   /// No description provided for @motorRunning.
   ///
@@ -385,7 +409,7 @@ abstract class AppLocalizations {
   /// No description provided for @marketExpectedPrice.
   ///
   /// In en, this message translates to:
-  /// **'Expected price'**
+  /// **'Expected price (per kg)'**
   String get marketExpectedPrice;
 
   /// No description provided for @marketFindBuyers.
@@ -429,6 +453,18 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Confirm sale'**
   String get marketConfirmSale;
+
+  /// No description provided for @marketConfirmSaleTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Confirm sale?'**
+  String get marketConfirmSaleTitle;
+
+  /// No description provided for @marketConfirmSaleBody.
+  ///
+  /// In en, this message translates to:
+  /// **'Mark this match as a confirmed sale? Other offers for this crop will be closed.'**
+  String get marketConfirmSaleBody;
 
   /// No description provided for @marketSaleConfirmed.
   ///
@@ -703,7 +739,7 @@ abstract class AppLocalizations {
   /// No description provided for @vendorExpectedPrice.
   ///
   /// In en, this message translates to:
-  /// **'Expected price'**
+  /// **'Expected price (per kg)'**
   String get vendorExpectedPrice;
 
   /// No description provided for @vendorAdd.
@@ -717,6 +753,24 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'My requests'**
   String get vendorRequests;
+
+  /// No description provided for @vendorOpportunities.
+  ///
+  /// In en, this message translates to:
+  /// **'Crops available from farmers'**
+  String get vendorOpportunities;
+
+  /// No description provided for @vendorAccept.
+  ///
+  /// In en, this message translates to:
+  /// **'I\'ll buy this'**
+  String get vendorAccept;
+
+  /// No description provided for @vendorBidPlaced.
+  ///
+  /// In en, this message translates to:
+  /// **'Interest sent to the farmer'**
+  String get vendorBidPlaced;
 
   /// No description provided for @vendorEmpty.
   ///
@@ -759,6 +813,48 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Loading…'**
   String get commonLoading;
+
+  /// No description provided for @locationUseMyLocation.
+  ///
+  /// In en, this message translates to:
+  /// **'Use my location'**
+  String get locationUseMyLocation;
+
+  /// No description provided for @locationDenied.
+  ///
+  /// In en, this message translates to:
+  /// **'Location permission denied — enter your location manually'**
+  String get locationDenied;
+
+  /// No description provided for @locationLatitude.
+  ///
+  /// In en, this message translates to:
+  /// **'Latitude'**
+  String get locationLatitude;
+
+  /// No description provided for @locationLongitude.
+  ///
+  /// In en, this message translates to:
+  /// **'Longitude'**
+  String get locationLongitude;
+
+  /// No description provided for @locationEnterManually.
+  ///
+  /// In en, this message translates to:
+  /// **'Enter location manually'**
+  String get locationEnterManually;
+
+  /// No description provided for @locationSet.
+  ///
+  /// In en, this message translates to:
+  /// **'Location set'**
+  String get locationSet;
+
+  /// No description provided for @locationInvalid.
+  ///
+  /// In en, this message translates to:
+  /// **'Enter a valid latitude and longitude'**
+  String get locationInvalid;
 }
 
 class _AppLocalizationsDelegate
