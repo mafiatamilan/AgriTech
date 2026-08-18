@@ -9,6 +9,9 @@ import httpx
 from datetime import datetime, timezone
 
 from app.core.config import get_settings
+from app.core.logging_config import get_logger
+
+logger = get_logger("app.agents.chat")
 
 
 async def answer(messages: list[dict], farm_context: dict) -> str:
@@ -18,6 +21,7 @@ async def answer(messages: list[dict], farm_context: dict) -> str:
     model = settings.LLM_MODEL or "mimo-v2.5-free"
 
     if not (api_key and base_url):
+        logger.warning("LLM not configured (missing key/base_url) — using stub reply")
         return _stub_reply(messages, farm_context)
 
     system_prompt = _build_system_prompt(farm_context)
@@ -25,10 +29,12 @@ async def answer(messages: list[dict], farm_context: dict) -> str:
     for m in messages[-20:]:
         llm_messages.append({"role": m.get("role") or "user", "content": m.get("content") or ""})
 
+    url = f"{base_url.rstrip('/')}/chat/completions"
+    logger.info("LLM request -> %s model=%s messages=%d", url, model, len(llm_messages))
     try:
         async with httpx.AsyncClient(timeout=60) as client:
             resp = await client.post(
-                f"{base_url.rstrip('/')}/chat/completions",
+                url,
                 headers={"Authorization": f"Bearer {api_key}"},
                 json={
                     "model": model,
@@ -37,10 +43,14 @@ async def answer(messages: list[dict], farm_context: dict) -> str:
                     "temperature": 0.3,
                 },
             )
+            logger.debug("LLM response status=%d", resp.status_code)
             resp.raise_for_status()
             data = resp.json()
-            return data["choices"][0]["message"]["content"].strip()
-    except Exception:
+            content = data["choices"][0]["message"]["content"].strip()
+            logger.info("LLM reply received (%d chars)", len(content))
+            return content
+    except Exception as exc:
+        logger.warning("LLM call failed (%s) — using stub reply", exc)
         return _stub_reply(messages, farm_context)
 
 

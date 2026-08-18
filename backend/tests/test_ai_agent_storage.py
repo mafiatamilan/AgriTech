@@ -3,7 +3,7 @@ import sys
 import os
 import hashlib
 from datetime import date
-from unittest.mock import patch, MagicMock
+from unittest.mock import patch, MagicMock, AsyncMock
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 
@@ -341,7 +341,9 @@ async def test_disease_pipeline_writes_diagnosis_and_agent_results():
                                "analysis_status": "processing"}])
 
     with patch("app.routers.upload.get_supabase_admin", lambda: sb):
-        await _run_analysis("img-1", "farm-1", "https://example.com/crop.jpg", None)
+        with patch("app.services.crop_health_service._download_image",
+                   new=AsyncMock(return_value="https://example.com/crop.jpg")):
+            await _run_analysis("img-1", "farm-1", "https://example.com/crop.jpg", None)
 
     crop_images = sb._tables["crop_images"]
     assert crop_images._last_update["analysis_status"] == "done"
@@ -428,14 +430,16 @@ async def test_graph_runs_all_agents():
     ])
     _seed(sb, "crop_images", [{"id": "img-1", "farm_id": "farm-1", "analysis_status": "processing"}])
 
-    out = await run_farm_graph(
-        sb, "farm-1", farmer_id="farmer-1",
-        image_ctx={"image_id": "img-1", "image_url": "https://example.com/crop.jpg", "crop_hint": None},
-        inventory_params=[{"farmer_id": "farmer-1", "farm_id": "farm-1", "crop_name": "tomato",
-                           "quantity": 10, "harvested_date": "2026-08-10"}],
-        demand_requests=[{"id": "d1", "crop_name": "maize", "shelf_life_days": 7,
-                          "harvested_date": "2026-08-10"}],
-    )
+    with patch("app.services.crop_health_service._download_image",
+               new=AsyncMock(return_value="https://example.com/crop.jpg")):
+        out = await run_farm_graph(
+            sb, "farm-1", farmer_id="farmer-1",
+            image_ctx={"image_id": "img-1", "image_url": "https://example.com/crop.jpg", "crop_hint": None},
+            inventory_params=[{"farmer_id": "farmer-1", "farm_id": "farm-1", "crop_name": "tomato",
+                               "quantity": 10, "harvested_date": "2026-08-10"}],
+            demand_requests=[{"id": "d1", "crop_name": "maize", "shelf_life_days": 7,
+                              "harvested_date": "2026-08-10"}],
+        )
 
     agents_ran = {r["agent"] for r in out.get("results", [])}
     assert agents_ran == {"irrigation", "crop_health", "yield", "inventory",

@@ -29,6 +29,10 @@ class Settings(BaseSettings):
     CO2E_FACTOR_KG_PER_KG_FOOD: float = 2.5
     INDIAN_RUPEE_PER_USD: float = 83.0
 
+    # Debug / logging
+    DEBUG: bool = False
+    LOG_LEVEL: str = "INFO"
+
     model_config = {"env_file": ".env", "env_file_encoding": "utf-8", "extra": "ignore"}
 
 

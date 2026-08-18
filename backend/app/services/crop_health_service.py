@@ -7,9 +7,35 @@ health row) and the yield prediction (writes an `agent_results` yield row +
 
 from datetime import date
 from pathlib import Path
+import logging
+import tempfile
+
+import httpx
 
 from app.agents.runtime import agents
 from app.core.config import get_settings
+
+logger = logging.getLogger("agritech.crop_health")
+
+
+async def _download_image(image_url: str) -> str:
+    """Ensure the image is available as a local path (agents need one)."""
+    if Path(image_url).exists():
+        return image_url
+    suffix = Path(image_url).suffix.lower() or ".jpg"
+    tmp = tempfile.NamedTemporaryFile(delete=False, suffix=suffix)
+    tmp.close()
+    try:
+        async with httpx.AsyncClient(timeout=30.0, follow_redirects=True) as client:
+            resp = await client.get(image_url)
+            resp.raise_for_status()
+            with open(tmp.name, "wb") as f:
+                f.write(resp.content)
+        logger.debug("Downloaded image %s -> %s (%d bytes)", image_url, tmp.name, len(resp.content))
+        return tmp.name
+    except Exception:
+        Path(tmp.name).unlink(missing_ok=True)
+        raise
 
 
 async def run_crop_health(
@@ -19,7 +45,12 @@ async def run_crop_health(
     agri = agents()["agri"]
 
     model, model_name = _build_model_adapter(agri)
-    diag = agri.DiseasePredictionAgent(model_adapter=model).analyze_image(image_url, crop_hint=crop_hint)
+    local_path = await _download_image(image_url)
+    try:
+        diag = agri.DiseasePredictionAgent(model_adapter=model).analyze_image(local_path, crop_hint=crop_hint)
+    finally:
+        if local_path != image_url:
+            Path(local_path).unlink(missing_ok=True)
 
     health_result = _health_result_from_diagnosis(diag)
 

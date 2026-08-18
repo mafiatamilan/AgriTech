@@ -9,8 +9,10 @@ import httpx
 from datetime import datetime
 
 from app.core.config import get_settings
+from app.core.logging_config import get_logger
 
 settings = get_settings()
+logger = get_logger("app.services.weather")
 
 DEFAULT_WEATHER = {
     "avg_temp_c": 24.0,
@@ -35,11 +37,13 @@ async def get_weather_snapshot(
     """Fetch + normalize weather, persist a weather_snapshots row, return it."""
     data = dict(DEFAULT_WEATHER)
     source = "backend_default"
+    logger.debug("weather snapshot requested farm=%s", farm_id)
     try:
         data = await _fetch_from_provider(farm_lat, farm_lon)
         source = "weather_api"
-    except Exception:
-        pass  # ponytail: weather outage must not break irrigation/inventory flows
+    except Exception as exc:
+        # ponytail: weather outage must not break irrigation/inventory flows
+        logger.warning("weather provider call failed (%s) — using defaults", exc)
 
     row = {
         "farm_id": farm_id,
