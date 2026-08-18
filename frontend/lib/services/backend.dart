@@ -178,6 +178,12 @@ class Backend {
     return WaterSaved.fromJson(json as Map<String, dynamic>);
   }
 
+  // ---- impact / tracks ----
+  Future<ImpactMetrics> getImpact(String farmId) async {
+    final json = await _api.get('/impact', query: {'farm_id': farmId});
+    return ImpactMetrics.fromJson(json as Map<String, dynamic>);
+  }
+
   // ---- notifications ----
   Future<List<AppNotification>> getNotifications() async {
     final json = await _api.get('/notifications') as List;

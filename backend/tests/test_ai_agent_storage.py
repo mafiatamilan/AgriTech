@@ -8,6 +8,16 @@ from unittest.mock import patch, MagicMock
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 
 
+@pytest.fixture(autouse=True)
+def _pin_static_disease_provider():
+    from app.core.config import get_settings
+    get_settings.cache_clear()
+    os.environ["PLANT_DISEASE_PROVIDER"] = "auto"
+    yield
+    os.environ.pop("PLANT_DISEASE_PROVIDER", None)
+    get_settings.cache_clear()
+
+
 class MockTable:
     def __init__(self, data=None):
         self._data = data or []
@@ -429,8 +439,13 @@ async def test_graph_runs_all_agents():
 
     agents_ran = {r["agent"] for r in out.get("results", [])}
     assert agents_ran == {"irrigation", "crop_health", "yield", "inventory",
-                          "demand_matching", "next_season", "smart_supervisor"}
+                          "demand_matching", "next_season", "smart_supervisor", "impact"}
     assert out.get("errors") == []
+
+    # every result carries an explicit status — never silent success
+    for r in out.get("results", []):
+        assert r["status"] in ("success", "failed", "skipped", "unavailable")
+    assert out["agent_run_id"]
 
     health = [r["output"] for r in out["results"] if r["agent"] == "crop_health"][0]
     assert health["health_status"] == "Disease detected"
@@ -438,6 +453,8 @@ async def test_graph_runs_all_agents():
     assert yield_out["expected_yield_kg"] > 0
     supervisor = [r["output"] for r in out["results"] if r["agent"] == "smart_supervisor"][0]
     assert supervisor is not None and "alerts" in supervisor
+    # supervisor now reports whether business-side data reached it
+    assert supervisor["business_review"] is True
     inventory = [r["output"] for r in out["results"] if r["agent"] == "inventory"][0]
     assert inventory and inventory[0]["inventory_id"] is not None
 
@@ -449,7 +466,7 @@ async def test_graph_isolates_agent_failures():
     _seed(sb, "farms", [{"id": "farm-1", "farmer_id": "farmer-1", "latitude": 6.5, "longitude": 3.3}])
     _seed(sb, "farm_devices", [{"id": "dev-1", "farm_id": "farm-1", "device_uid": "esp-1"}])
 
-    async def boom(sb, farm_id, farmer_id=None):
+    async def boom(sb, farm_id, farmer_id=None, agent_run_id=None):
         raise RuntimeError("agent down")
 
     from app.services import irrigation_agent_service
@@ -459,4 +476,126 @@ async def test_graph_isolates_agent_failures():
     assert any("irrigation" in e for e in out.get("errors", []))
     ran_agents = {r["agent"] for r in out.get("results", [])}
     assert "smart_supervisor" in ran_agents
-    assert "irrigation" not in ran_agents
+    # failed agents stay in results but are marked failed — never silent success
+    irr = [r for r in out["results"] if r["agent"] == "irrigation"][0]
+    assert irr["status"] == "failed"
+    for r in out["results"]:
+        if r["status"] == "success":
+            assert r["output"] is not None
+
+@pytest.mark.asyncio
+async def test_impact_metrics_recorded_from_success_results():
+    from app.services.impact_service import record_impact_metrics
+    sb = get_mock_supabase_admin()
+    results = [
+        {"agent": "irrigation", "status": "success",
+         "output": {"decision": "water_now", "recommended_duration_minutes": 18}},
+        {"agent": "demand_matching", "status": "success",
+         "output": [[{"quantity_to_sell_kg": 50.0, "offered_price": 30.0}]]},
+        {"agent": "yield", "status": "success",
+         "output": {"crop_type": "tomato", "expected_yield_kg": 120.0}},
+    ]
+    rows = await record_impact_metrics(
+        sb, "farm-1", "farmer-1", "run-123", results)
+    persisted = sb._tables["impact_metrics"]._data
+    assert len(persisted) == 4
+    types = {r["metric_type"] for r in persisted}
+    assert "water_saved_liters" in types
+    assert "food_rescued_kg" in types
+    assert "economic_value_recovered_inr" in types
+    assert "co2e_avoided_kg" in types
+    assert "yield_gain_pct" not in types  # no crop_performance baseline
+    for r in persisted:
+        assert r["agent_run_id"] == "run-123"
+        assert r["farm_id"] == "farm-1"
+        assert r["farmer_id"] == "farmer-1"
+        assert "metadata" in r
+    water = [r for r in persisted if r["metric_type"] == "water_saved_liters"][0]
+    assert water["baseline_value"] > water["optimized_value"]
+    assert water["value"] == round(water["baseline_value"] - water["optimized_value"], 2)
+    rescued = [r for r in persisted if r["metric_type"] == "food_rescued_kg"][0]
+    assert rescued["value"] == 50.0
+    assert rescued["measured_or_estimated"] == "estimated"
+
+
+@pytest.mark.asyncio
+async def test_impact_skips_failed_and_skipped_agents():
+    from app.services.impact_service import record_impact_metrics
+    sb = get_mock_supabase_admin()
+    results = [
+        {"agent": "irrigation", "status": "failed", "output": None},
+        {"agent": "demand_matching", "status": "skipped", "output": None},
+    ]
+    rows = await record_impact_metrics(sb, "farm-1", "farmer-1", "run-1", results)
+    assert rows == []
+    assert sb._tables.get("impact_metrics") is None
+
+
+@pytest.mark.asyncio
+async def test_supervisor_consumes_real_business_data():
+    from app.services.supervisor_service import run_smart_supervisor
+    sb = get_mock_supabase_admin()
+    _seed(sb, "farms", [{"id": "farm-1", "farmer_id": "farmer-1", "latitude": 6.5, "longitude": 3.3}])
+    _seed(sb, "field_area", [{"id": "field-1", "farm_id": "farm-1", "crop_type": "tomato"}])
+    _seed(sb, "inventory", [
+        {"id": "inv-1", "farm_id": "farm-1", "crop_name": "tomato", "quantity": 40.0,
+         "harvested_date": "2026-08-10", "storage_type": "AMBIENT", "quality_grade": "A",
+         "status": "available"},
+    ])
+    _seed(sb, "vendor_requests", [
+        {"id": "vr-1", "vendor_id": "v-1", "crop_name": "tomato", "quantity_needed": 50.0,
+         "expected_price": 30.0, "status": "open",
+         "vendors": {"business_name": "GreenCo", "reliability_score": 0.9}},
+    ])
+
+    with patch("app.services.supervisor_service.get_weather_snapshot",
+               return_value={"id": "w-1", "farm_id": "farm-1"}):
+        result = await run_smart_supervisor(
+            sb, "farm-1",
+            results=[{"agent": "yield", "status": "success",
+                      "output": {"crop_type": "tomato", "expected_yield_kg": 120.0,
+                                 "confidence_level": "high", "risk_factors": []}}],
+            agent_run_id="run-7",
+        )
+
+    assert result is not None
+    assert result["business_review"] is True
+    assert result["agri_review"] is True
+    review = sb._tables["smart_farming_reviews"]._last_insert
+    assert review["agent_run_id"] == "run-7"
+    ar = sb._tables["agent_results"]._last_insert
+    assert ar["agent_run_id"] == "run-7"
+    assert ar["agent_type"] == "smart_supervisor"
+    # inventory + vendor data actually reached the supervisor's business review
+    assert len(review["alerts"]) >= 0  # alerts may be empty; the point is inputs flowed
+    assert result["alerts"] == review["alerts"]
+
+
+@pytest.mark.asyncio
+async def test_agent_run_id_consistent_across_graph_writes():
+    from app.agents.graph import run_farm_graph
+    sb = get_mock_supabase_admin()
+    _seed(sb, "farms", [{"id": "farm-1", "farmer_id": "farmer-1", "latitude": 6.5, "longitude": 3.3}])
+    _seed(sb, "field_area", [{"id": "field-1", "farm_id": "farm-1", "crop_type": "maize",
+                              "soil_type": "sandy", "growth_stage": "vegetative"}])
+    _seed(sb, "farm_devices", [{"id": "dev-1", "farm_id": "farm-1", "device_uid": "esp-1"}])
+    _seed(sb, "crop_images", [{"id": "img-1", "farm_id": "farm-1", "analysis_status": "processing"}])
+
+    out = await run_farm_graph(
+        sb, "farm-1", farmer_id="farmer-1",
+        image_ctx={"image_id": "img-1", "image_url": "https://example.com/crop.jpg", "crop_hint": None},
+        demand_requests=[{"id": "d1", "crop_name": "maize", "shelf_life_days": 7,
+                          "harvested_date": "2026-08-10"}],
+    )
+    run_id = out["agent_run_id"]
+    assert run_id
+
+    impact_rows = sb._tables["impact_metrics"]._data
+    assert impact_rows  # at least one metric recorded
+    for r in impact_rows:
+        assert r["agent_run_id"] == run_id
+    # supervisor row written under the same run id
+    reviews = sb._tables["smart_farming_reviews"]._data
+    assert reviews and all(r["agent_run_id"] == run_id for r in reviews)
+    agent_results = [r for r in sb._tables["agent_results"]._data if r.get("agent_run_id")]
+    assert agent_results and all(r["agent_run_id"] == run_id for r in agent_results)

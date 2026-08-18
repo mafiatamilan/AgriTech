@@ -98,16 +98,18 @@ async def check_new_matches():
 
 
 async def run_agent_jobs_per_farm():
-    from app.services.irrigation_agent_service import run_irrigation_decision
-    from app.services.next_season_service import run_next_season
-    from app.services.supervisor_service import run_smart_supervisor
+    from app.agents.graph import run_farm_graph
 
     sb = get_supabase_admin()
     farms = sb.table("farms").select("id, farmer_id").limit(100).execute()
     for farm in farms.data or []:
-        await run_irrigation_decision(sb, farm["id"], farm["farmer_id"])
-        await run_next_season(sb, farm["id"])
-        await run_smart_supervisor(sb, farm["id"])
+        # LangGraph is the canonical execution path: one agent_run_id ties
+        # together every agent_result / decision / impact metric / command.
+        try:
+            await run_farm_graph(sb, farm["id"], farm["farmer_id"])
+        except Exception:
+            # per-farm isolation: one farm's failure never blocks the rest
+            continue
 
 
 def start_scheduler():

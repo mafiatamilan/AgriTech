@@ -12,3 +12,5 @@ pytest-asyncio==0.24.0
 numpy==1.26.4
 Pillow==10.4.0
 langgraph==1.2.11
+torch==2.13.0+cpu
+torchvision==0.28.0+cpu

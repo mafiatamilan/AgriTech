@@ -245,6 +245,11 @@ final vendorOpportunitiesProvider = FutureProvider<List<DemandRequest>>((ref) {
   return ref.watch(backendProvider).vendorOpportunities();
 });
 
+final impactProvider =
+    FutureProvider.family<ImpactMetrics, String>((ref, farmId) async {
+  return ref.watch(backendProvider).getImpact(farmId);
+});
+
 // ---------------------------------------------------------------------------
 // Realtime notifications
 // ---------------------------------------------------------------------------
