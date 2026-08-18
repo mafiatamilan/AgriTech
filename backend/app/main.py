@@ -10,9 +10,23 @@ from app.workers.scheduler import start_scheduler, stop_scheduler
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
+    _ensure_storage_bucket()
     start_scheduler()
     yield
     stop_scheduler()
+
+
+def _ensure_storage_bucket():
+    try:
+        from app.db.supabase_client import get_supabase_admin
+        sb = get_supabase_admin()
+        existing = {b.id for b in sb.storage.list_buckets()}
+        if "crop-images" not in existing:
+            sb.storage.create_bucket("crop-images")
+            sb.storage.update_bucket("crop-images", {"public": True})
+    except Exception:
+        # non-fatal: storage uploads will surface a clear error if still missing
+        pass
 
 
 app = FastAPI(

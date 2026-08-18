@@ -402,3 +402,61 @@ async def test_demand_matching_agent_empty_returns_open():
     dr = {"id": "d1", "crop_name": "maize", "shelf_life_days": 7, "harvested_date": "2026-08-10"}
     matches = await run_demand_matching(dr, sb)
     assert matches == []
+
+
+@pytest.mark.asyncio
+async def test_graph_runs_all_agents():
+    from app.agents.graph import run_farm_graph
+    sb = get_mock_supabase_admin()
+    _seed(sb, "farms", [{"id": "farm-1", "farmer_id": "farmer-1", "latitude": 6.5, "longitude": 3.3}])
+    _seed(sb, "field_area", [{"id": "field-1", "farm_id": "farm-1", "crop_type": "maize",
+                              "soil_type": "sandy", "growth_stage": "vegetative"}])
+    _seed(sb, "farm_devices", [{"id": "dev-1", "farm_id": "farm-1", "device_uid": "esp-1"}])
+    _seed(sb, "crop_performance_history", [
+        {"crop": "tomato", "yield_kg": 100.0, "revenue": 1000.0, "cost": 500.0, "season": "rainy"},
+        {"crop": "maize", "yield_kg": 200.0, "revenue": 800.0, "cost": 400.0, "season": "rainy"},
+    ])
+    _seed(sb, "crop_images", [{"id": "img-1", "farm_id": "farm-1", "analysis_status": "processing"}])
+
+    out = await run_farm_graph(
+        sb, "farm-1", farmer_id="farmer-1",
+        image_ctx={"image_id": "img-1", "image_url": "https://example.com/crop.jpg", "crop_hint": None},
+        inventory_params=[{"farmer_id": "farmer-1", "farm_id": "farm-1", "crop_name": "tomato",
+                           "quantity": 10, "harvested_date": "2026-08-10"}],
+        demand_requests=[{"id": "d1", "crop_name": "maize", "shelf_life_days": 7,
+                          "harvested_date": "2026-08-10"}],
+    )
+
+    agents_ran = {r["agent"] for r in out.get("results", [])}
+    assert agents_ran == {"irrigation", "crop_health", "yield", "inventory",
+                          "demand_matching", "next_season", "smart_supervisor"}
+    assert out.get("errors") == []
+
+    health = [r["output"] for r in out["results"] if r["agent"] == "crop_health"][0]
+    assert health["health_status"] == "Disease detected"
+    yield_out = [r["output"] for r in out["results"] if r["agent"] == "yield"][0]
+    assert yield_out["expected_yield_kg"] > 0
+    supervisor = [r["output"] for r in out["results"] if r["agent"] == "smart_supervisor"][0]
+    assert supervisor is not None and "alerts" in supervisor
+    inventory = [r["output"] for r in out["results"] if r["agent"] == "inventory"][0]
+    assert inventory and inventory[0]["inventory_id"] is not None
+
+
+@pytest.mark.asyncio
+async def test_graph_isolates_agent_failures():
+    from app.agents.graph import run_farm_graph
+    sb = get_mock_supabase_admin()
+    _seed(sb, "farms", [{"id": "farm-1", "farmer_id": "farmer-1", "latitude": 6.5, "longitude": 3.3}])
+    _seed(sb, "farm_devices", [{"id": "dev-1", "farm_id": "farm-1", "device_uid": "esp-1"}])
+
+    async def boom(sb, farm_id, farmer_id=None):
+        raise RuntimeError("agent down")
+
+    from app.services import irrigation_agent_service
+    with patch.object(irrigation_agent_service, "run_irrigation_decision", side_effect=boom):
+        out = await run_farm_graph(sb, "farm-1", farmer_id="farmer-1")
+
+    assert any("irrigation" in e for e in out.get("errors", []))
+    ran_agents = {r["agent"] for r in out.get("results", [])}
+    assert "smart_supervisor" in ran_agents
+    assert "irrigation" not in ran_agents
