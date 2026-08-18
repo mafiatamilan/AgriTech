@@ -44,6 +44,8 @@ class MockTable:
         return self
 
     def insert(self, row):
+        row_with_id = {"id": "mock-id-0", **row}
+        self._data = [row_with_id]
         return self
 
     def update(self, row):
@@ -82,16 +84,15 @@ def get_mock_supabase_admin():
 @pytest.mark.asyncio
 async def test_webhook_valid_secret():
     with patch("app.routers.webhooks.get_supabase_admin", get_mock_supabase_admin):
-        from app.routers.webhooks import receive_agent_result
-        from app.models.crop_image import CropImageStatus
+        from app.routers.webhooks import receive_agent_result, AgentResultPayload
 
-        payload = {
-            "crop_image_id": "img-123",
-            "farm_id": "farm-456",
-            "agent_type": "health",
-            "result_json": {"health_status": "healthy", "diseases_detected": []},
-            "status": "done",
-        }
+        payload = AgentResultPayload(
+            crop_image_id="img-123",
+            farm_id="farm-456",
+            agent_type="health",
+            result_json={"health_status": "healthy", "diseases_detected": []},
+            status="done",
+        )
         result = await receive_agent_result(
             payload=payload,
             auth_info={"method": "shared_secret"},
@@ -103,18 +104,18 @@ async def test_webhook_valid_secret():
 @pytest.mark.asyncio
 async def test_webhook_disease_alert_creates_notification():
     with patch("app.routers.webhooks.get_supabase_admin", get_mock_supabase_admin):
-        from app.routers.webhooks import receive_agent_result
+        from app.routers.webhooks import receive_agent_result, AgentResultPayload
 
-        payload = {
-            "crop_image_id": "img-789",
-            "farm_id": "farm-101",
-            "agent_type": "health",
-            "result_json": {
+        payload = AgentResultPayload(
+            crop_image_id="img-789",
+            farm_id="farm-101",
+            agent_type="health",
+            result_json={
                 "health_status": "diseased",
                 "diseases_detected": ["Leaf Blight", "Rust"],
             },
-            "status": "done",
-        }
+            status="done",
+        )
         result = await receive_agent_result(
             payload=payload,
             auth_info={"method": "shared_secret"},
@@ -133,7 +134,9 @@ async def test_webhook_missing_secret_and_signature():
 
     mock_request = MagicMock()
     mock_request.headers = {}
-    mock_request.body = b"{}"
+    async def _body():
+        return b"{}"
+    mock_request.body = _body
 
     with pytest.raises(HTTPException) as exc_info:
         await verify_agent_webhook(mock_request)
@@ -167,7 +170,9 @@ async def test_webhook_invalid_hmac_signature():
         "X-Signature": "invalid-sig",
         "X-Timestamp": str(int(time.time())),
     }
-    mock_request.body = b'{"test": true}'
+    async def _body():
+        return b'{"test": true}'
+    mock_request.body = _body
 
     with patch("app.core.security.settings") as mock_settings:
         mock_settings.AGENT_WEBHOOK_SECRET = "my-secret"
@@ -188,7 +193,9 @@ async def test_webhook_expired_timestamp():
         "X-Signature": "anything",
         "X-Timestamp": old_ts,
     }
-    mock_request.body = b'{}'
+    async def _body():
+        return b'{}'
+    mock_request.body = _body
 
     with patch("app.core.security.settings") as mock_settings:
         mock_settings.AGENT_WEBHOOK_SECRET = "my-secret"
@@ -213,7 +220,9 @@ async def test_webhook_valid_hmac_signature():
         "X-Signature": sig,
         "X-Timestamp": ts,
     }
-    mock_request.body = body.encode("utf-8")
+    async def _body():
+        return body.encode("utf-8")
+    mock_request.body = _body
 
     with patch("app.core.security.settings") as mock_settings:
         mock_settings.AGENT_WEBHOOK_SECRET = secret
@@ -227,18 +236,27 @@ async def test_webhook_valid_hmac_signature():
 
 @pytest.mark.asyncio
 async def test_extend_shelf_life_clears_correct_notification_type():
-    with patch("app.routers.market.get_supabase", get_mock_supabase):
-        from app.routers.market import extend_shelf_life
-        from app.models.market import ExtendShelfLifeRequest
+    mock_sb = get_mock_supabase()
+    mock_sb._tables["demand_requests"] = MockTable([{
+        "id": "req-123",
+        "farmer_id": "farmer-1",
+        "crop_name": "Maize",
+        "shelf_life_expiry": "2026-08-20T00:00:00",
+        "status": "open",
+    }])
+    mock_sb._tables["notifications"] = MockTable([{
+        "id": "notif-1",
+        "related_id": "req-123",
+        "type": "shelf_life_expiring",
+    }])
+    mock_sb._tables["rescue_matches"] = MockTable([])
 
-        mock_sb = get_mock_supabase()
-        mock_sb._tables["demand_requests"] = MockTable([{
-            "id": "req-123",
-            "farmer_id": "farmer-1",
-            "crop_name": "Maize",
-            "shelf_life_expiry": "2026-08-20T00:00:00",
-            "status": "open",
-        }])
+    def _get_sb():
+        return mock_sb
+
+    with patch("app.routers.market.get_supabase", _get_sb):
+        from app.routers.market import extend_shelf_life
+        from app.routers.market import ExtendShelfLifeRequest
 
         req = ExtendShelfLifeRequest(additional_days=3)
         result = await extend_shelf_life("req-123", req, {"id": "farmer-1"})

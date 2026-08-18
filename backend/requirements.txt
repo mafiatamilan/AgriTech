@@ -14,3 +14,4 @@ Pillow==10.4.0
 langgraph==1.2.11
 torch==2.13.0+cpu
 torchvision==0.28.0+cpu
+PyJWT>=2.8.0
