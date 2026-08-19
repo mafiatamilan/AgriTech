@@ -128,104 +128,116 @@ class _VendorHomeScreenState extends ConsumerState<VendorHomeScreen> {
         leading: Navigator.of(context).canPop() ? const BackButton() : null,
         title: Text(l10n.appTitle),
         actions: [
+          IconButton(icon: const Icon(Icons.refresh), onPressed: _refresh),
           IconButton(
             icon: const Icon(Icons.logout),
             onPressed: () => ref.read(authProvider.notifier).signOut(),
           ),
         ],
       ),
-      body: requests.when(
-        loading: () => const Center(child: CircularProgressIndicator()),
-        error: (e, _) => !_signedUp
-            ? _SignupView(submitting: _submitting, onSignup: _signup)
-            : ErrorView(onRetry: () => ref.invalidate(vendorRequestsProvider)),
-        data: (items) => ListView(
-          children: [
-            Padding(
-              padding: const EdgeInsets.all(16),
-              child: Text(
-                l10n.vendorNeedTitle,
-                style: Theme.of(context).textTheme.titleMedium,
-              ),
-            ),
-            Card(
-              child: Padding(
+      body: RefreshIndicator(
+        onRefresh: _refresh,
+        child: requests.when(
+          loading: () => const Center(child: CircularProgressIndicator()),
+          error: (e, _) => !_signedUp
+              ? _SignupView(submitting: _submitting, onSignup: _signup)
+              : ErrorView(
+                  onRetry: () => ref.invalidate(vendorRequestsProvider),
+                ),
+          data: (items) => ListView(
+            children: [
+              Padding(
                 padding: const EdgeInsets.all(16),
-                child: Column(
-                  children: [
-                    TextField(
-                      controller: _cropController,
-                      decoration: InputDecoration(
-                        labelText: l10n.vendorCropName,
-                        isDense: true,
-                      ),
-                    ),
-                    const SizedBox(height: 12),
-                    TextField(
-                      controller: _qtyController,
-                      keyboardType: TextInputType.number,
-                      decoration: InputDecoration(
-                        labelText: l10n.vendorQuantity,
-                        isDense: true,
-                      ),
-                    ),
-                    const SizedBox(height: 12),
-                    TextField(
-                      controller: _priceController,
-                      keyboardType: TextInputType.number,
-                      decoration: InputDecoration(
-                        labelText: l10n.vendorExpectedPrice,
-                        isDense: true,
-                      ),
-                    ),
-                    const SizedBox(height: 16),
-                    SizedBox(
-                      width: double.infinity,
-                      child: FilledButton(
-                        onPressed: _submitting ? null : _addRequest,
-                        child: _submitting
-                            ? const SizedBox(
-                                width: 18,
-                                height: 18,
-                                child: CircularProgressIndicator(
-                                  strokeWidth: 2,
-                                ),
-                              )
-                            : Text(l10n.vendorAdd),
-                      ),
-                    ),
-                  ],
+                child: Text(
+                  l10n.vendorNeedTitle,
+                  style: Theme.of(context).textTheme.titleMedium,
                 ),
               ),
-            ),
-            Padding(
-              padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
-              child: Text(
-                l10n.vendorRequests,
-                style: Theme.of(context).textTheme.titleMedium,
+              Card(
+                child: Padding(
+                  padding: const EdgeInsets.all(16),
+                  child: Column(
+                    children: [
+                      TextField(
+                        controller: _cropController,
+                        decoration: InputDecoration(
+                          labelText: l10n.vendorCropName,
+                          isDense: true,
+                        ),
+                      ),
+                      const SizedBox(height: 12),
+                      TextField(
+                        controller: _qtyController,
+                        keyboardType: TextInputType.number,
+                        decoration: InputDecoration(
+                          labelText: l10n.vendorQuantity,
+                          isDense: true,
+                        ),
+                      ),
+                      const SizedBox(height: 12),
+                      TextField(
+                        controller: _priceController,
+                        keyboardType: TextInputType.number,
+                        decoration: InputDecoration(
+                          labelText: l10n.vendorExpectedPrice,
+                          isDense: true,
+                        ),
+                      ),
+                      const SizedBox(height: 16),
+                      SizedBox(
+                        width: double.infinity,
+                        child: FilledButton(
+                          onPressed: _submitting ? null : _addRequest,
+                          child: _submitting
+                              ? const SizedBox(
+                                  width: 18,
+                                  height: 18,
+                                  child: CircularProgressIndicator(
+                                    strokeWidth: 2,
+                                  ),
+                                )
+                              : Text(l10n.vendorAdd),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
               ),
-            ),
-            if (items.isEmpty)
               Padding(
-                padding: const EdgeInsets.all(24),
-                child: Center(child: Text(l10n.vendorEmpty)),
-              )
-            else
-              for (final r in items) _VendorRequestTile(request: r),
-            const SizedBox(height: 16),
-            Padding(
-              padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
-              child: Text(
-                l10n.vendorOpportunities,
-                style: Theme.of(context).textTheme.titleMedium,
+                padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
+                child: Text(
+                  l10n.vendorRequests,
+                  style: Theme.of(context).textTheme.titleMedium,
+                ),
               ),
-            ),
-            _VendorOpportunitiesList(onAccept: _accept),
-            const SizedBox(height: 16),
-          ],
+              if (items.isEmpty)
+                Padding(
+                  padding: const EdgeInsets.all(24),
+                  child: Center(child: Text(l10n.vendorEmpty)),
+                )
+              else
+                for (final r in items) _VendorRequestTile(request: r),
+              const SizedBox(height: 16),
+              Padding(
+                padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
+                child: Text(
+                  l10n.vendorOpportunities,
+                  style: Theme.of(context).textTheme.titleMedium,
+                ),
+              ),
+              _VendorOpportunitiesList(onAccept: _accept),
+              const SizedBox(height: 16),
+            ],
+          ),
         ),
       ),
     );
+  }
+
+  Future<void> _refresh() async {
+    ref.invalidate(vendorRequestsProvider);
+    ref.invalidate(vendorOpportunitiesProvider);
+    await Future<void>.delayed(const Duration(milliseconds: 300));
   }
 }
 
