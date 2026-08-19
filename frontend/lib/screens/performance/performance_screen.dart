@@ -4,7 +4,6 @@ import 'package:intl/intl.dart';
 
 import '../../l10n/app_localizations.dart';
 import '../../providers/providers.dart';
-import '../../services/backend.dart';
 import '../../widgets/shared.dart';
 
 class PerformanceScreen extends ConsumerStatefulWidget {
