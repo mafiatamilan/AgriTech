@@ -22,6 +22,26 @@ def _as_float(value) -> float:
         return 0.0
 
 
+def _attach_farmer_profiles(sb, requests: list[dict]) -> list[dict]:
+    farmer_ids = list({request.get("farmer_id") for request in requests if request.get("farmer_id")})
+    if not farmer_ids:
+        return requests
+    farmers = sb.table("farmers").select("id, name, phone, email, area_locality") \
+        .in_("id", farmer_ids).execute()
+    by_farmer = {farmer["id"]: farmer for farmer in farmers.data or []}
+    for request in requests:
+        farmer = by_farmer.get(request.get("farmer_id"))
+        if farmer:
+            request["farmer_profile"] = {
+                "id": farmer.get("id"),
+                "name": farmer.get("name"),
+                "phone": farmer.get("phone"),
+                "email": farmer.get("email"),
+                "address": farmer.get("area_locality"),
+            }
+    return requests
+
+
 class VendorSignupRequest(BaseModel):
     name: str | None = None
     phone: str | None = None
@@ -145,7 +165,7 @@ async def list_opportunities(current_farmer: dict = Depends(get_current_farmer))
             and _as_float(available) > 0
         ):
             visible_requests.append(request)
-    return visible_requests
+    return _attach_farmer_profiles(sb, visible_requests)
 
 
 @router.post("/opportunities/{request_id}/route")
@@ -211,7 +231,9 @@ async def accept_opportunity(
 ):
     sb = get_supabase()
 
-    vendor = sb.table("vendors").select("business_name").eq("id", current_farmer["id"]).execute()
+    vendor = sb.table("vendors") \
+        .select("business_name, contact_phone, contact_email, address") \
+        .eq("id", current_farmer["id"]).execute()
     if not vendor.data:
         raise HTTPException(status_code=403, detail="Not a registered vendor")
 
@@ -236,6 +258,9 @@ async def accept_opportunity(
     buyer_info = {
         "buyer_name": vendor.data[0].get("business_name") or "Vendor",
         "buyer_farmer_id": current_farmer["id"],
+        "buyer_phone": vendor.data[0].get("contact_phone"),
+        "buyer_email": vendor.data[0].get("contact_email"),
+        "buyer_address": vendor.data[0].get("address"),
         "offered_price": dr.data[0].get("expected_price"),
         "distance_km": None,
         "shelf_life_compatible": True,

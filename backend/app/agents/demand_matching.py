@@ -21,7 +21,7 @@ async def run_demand_matching(demand_request: dict, sb=None, agent_run_id: str |
         return []
 
     vr = sb.table("vendor_requests") \
-        .select("*, vendors(business_name, reliability_score)") \
+        .select("*, vendors(business_name, reliability_score, contact_phone, contact_email, address)") \
         .eq("crop_name", crop) \
         .eq("status", "open") \
         .execute()
@@ -81,10 +81,12 @@ async def run_demand_matching(demand_request: dict, sb=None, agent_run_id: str |
     )
 
     buyer_demands = []
+    vendors_by_id = {}
     for row in rows:
         vendor = row.get("vendors") or {}
         if not isinstance(vendor, dict):
             vendor = {}
+        vendors_by_id[row.get("vendor_id", "")] = vendor
         buyer_demands.append(
             BuyerDemand(
                 buyer_id=row.get("vendor_id", ""),
@@ -109,6 +111,10 @@ async def run_demand_matching(demand_request: dict, sb=None, agent_run_id: str |
     return [
         {
             "buyer_name": m.buyer_name,
+            "buyer_farmer_id": m.buyer_id,
+            "buyer_phone": vendors_by_id.get(m.buyer_id, {}).get("contact_phone"),
+            "buyer_email": vendors_by_id.get(m.buyer_id, {}).get("contact_email"),
+            "buyer_address": vendors_by_id.get(m.buyer_id, {}).get("address"),
             "buyer_location": "Nearby",
             "offered_price": m.offered_price_per_kg,
             "distance_km": m.distance_km,

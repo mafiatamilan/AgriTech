@@ -44,14 +44,14 @@ class FarmerProfile {
   });
 
   factory FarmerProfile.fromJson(Map<String, dynamic> json) => FarmerProfile(
-        id: json['id'] as String,
-        name: json['name'] as String? ?? '',
-        phone: json['phone'] as String?,
-        email: json['email'] as String?,
-        preferredLanguage: json['preferred_language'] as String? ?? 'en',
-        soilType: json['soil_type'] as String?,
-        areaLocality: json['area_locality'] as String?,
-      );
+    id: json['id'] as String,
+    name: json['name'] as String? ?? '',
+    phone: json['phone'] as String?,
+    email: json['email'] as String?,
+    preferredLanguage: json['preferred_language'] as String? ?? 'en',
+    soilType: json['soil_type'] as String?,
+    areaLocality: json['area_locality'] as String?,
+  );
 
   final String id;
   final String name;
@@ -70,10 +70,10 @@ class AuthResponse {
   });
 
   factory AuthResponse.fromJson(Map<String, dynamic> json) => AuthResponse(
-        accessToken: json['access_token'] as String,
-        refreshToken: json['refresh_token'] as String,
-        userId: json['user_id'] as String,
-      );
+    accessToken: json['access_token'] as String,
+    refreshToken: json['refresh_token'] as String,
+    userId: json['user_id'] as String,
+  );
 
   final String accessToken;
   final String refreshToken;
@@ -84,10 +84,10 @@ class Farm {
   Farm({required this.id, required this.name, this.location});
 
   factory Farm.fromJson(Map<String, dynamic> json) => Farm(
-        id: json['id'] as String,
-        name: json['name'] as String? ?? 'Unnamed farm',
-        location: json['location'] as String?,
-      );
+    id: json['id'] as String,
+    name: json['name'] as String? ?? 'Unnamed farm',
+    location: json['location'] as String?,
+  );
 
   final String id;
   final String name;
@@ -106,14 +106,14 @@ class FieldArea {
   });
 
   factory FieldArea.fromJson(Map<String, dynamic> json) => FieldArea(
-        id: json['id'] as String,
-        fieldName: json['field_name'] as String?,
-        areaSize: _num(json['area_size']),
-        cropType: json['crop_type'] as String?,
-        plantedDate: json['planted_date'] as String?,
-        soilType: json['soil_type'] as String?,
-        pumpFlowLpm: _num(json['pump_flow_lpm']),
-      );
+    id: json['id'] as String,
+    fieldName: json['field_name'] as String?,
+    areaSize: _num(json['area_size']),
+    cropType: json['crop_type'] as String?,
+    plantedDate: json['planted_date'] as String?,
+    soilType: json['soil_type'] as String?,
+    pumpFlowLpm: _num(json['pump_flow_lpm']),
+  );
 
   final String id;
   final String? fieldName;
@@ -124,13 +124,13 @@ class FieldArea {
   final double? pumpFlowLpm;
 
   Map<String, dynamic> toJson() => {
-        'field_name': fieldName,
-        'area_size': areaSize,
-        'crop_type': cropType,
-        'planted_date': plantedDate,
-        'soil_type': soilType,
-        'pump_flow_lpm': pumpFlowLpm,
-      };
+    'field_name': fieldName,
+    'area_size': areaSize,
+    'crop_type': cropType,
+    'planted_date': plantedDate,
+    'soil_type': soilType,
+    'pump_flow_lpm': pumpFlowLpm,
+  };
 }
 
 class IrrigationEvent {
@@ -182,25 +182,29 @@ class MotorStatus {
   });
 
   factory MotorStatus.fromJson(Map<String, dynamic> json) => MotorStatus(
-        lastWatered: json['last_watered'] == null
-            ? null
-            : IrrigationEvent.fromJson(
-                Map<String, dynamic>.from(json['last_watered'] as Map)),
-        nextWatering: json['next_watering'] == null
-            ? null
-            : IrrigationEvent.fromJson(
-                Map<String, dynamic>.from(json['next_watering'] as Map)),
-        currentStatus: json['current_status'] == null
-            ? null
-            : IrrigationEvent.fromJson(
-                Map<String, dynamic>.from(json['current_status'] as Map)),
-        moistureReadings: (json['moisture_readings'] as List? ?? [])
-            .map((e) =>
-                MoistureReading.fromJson(Map<String, dynamic>.from(e as Map)))
-            .toList(),
-        signalStrength: json['signal_strength'] as int?,
-        motorRelayState: json['motor_relay_state'] as bool?,
-      );
+    lastWatered: json['last_watered'] == null
+        ? null
+        : IrrigationEvent.fromJson(
+            Map<String, dynamic>.from(json['last_watered'] as Map),
+          ),
+    nextWatering: json['next_watering'] == null
+        ? null
+        : IrrigationEvent.fromJson(
+            Map<String, dynamic>.from(json['next_watering'] as Map),
+          ),
+    currentStatus: json['current_status'] == null
+        ? null
+        : IrrigationEvent.fromJson(
+            Map<String, dynamic>.from(json['current_status'] as Map),
+          ),
+    moistureReadings: (json['moisture_readings'] as List? ?? [])
+        .map(
+          (e) => MoistureReading.fromJson(Map<String, dynamic>.from(e as Map)),
+        )
+        .toList(),
+    signalStrength: json['signal_strength'] as int?,
+    motorRelayState: json['motor_relay_state'] as bool?,
+  );
 
   final IrrigationEvent? lastWatered;
   final IrrigationEvent? nextWatering;
@@ -246,6 +250,9 @@ class AppNotification {
 class MarketMatch {
   MarketMatch({
     required this.buyerName,
+    this.buyerPhone,
+    this.buyerEmail,
+    this.buyerAddress,
     this.offeredPrice,
     this.distanceKm,
     this.shelfLifeCompatible,
@@ -253,14 +260,20 @@ class MarketMatch {
   });
 
   factory MarketMatch.fromJson(Map<String, dynamic> json) => MarketMatch(
-        buyerName: json['buyer_name'] as String? ?? 'Unknown buyer',
-        offeredPrice: _num(json['offered_price']),
-        distanceKm: _num(json['distance_km']),
-        shelfLifeCompatible: json['shelf_life_compatible'] as bool?,
-        matchScore: _num(json['match_score']),
-      );
+    buyerName: json['buyer_name'] as String? ?? 'Unknown buyer',
+    buyerPhone: json['buyer_phone'] as String?,
+    buyerEmail: json['buyer_email'] as String?,
+    buyerAddress: json['buyer_address'] as String?,
+    offeredPrice: _num(json['offered_price']),
+    distanceKm: _num(json['distance_km']),
+    shelfLifeCompatible: json['shelf_life_compatible'] as bool?,
+    matchScore: _num(json['match_score']),
+  );
 
   final String buyerName;
+  final String? buyerPhone;
+  final String? buyerEmail;
+  final String? buyerAddress;
   final double? offeredPrice;
   final double? distanceKm;
   final bool? shelfLifeCompatible;
@@ -274,7 +287,8 @@ class CropMatchResult {
     required this.status,
   });
 
-  factory CropMatchResult.fromJson(Map<String, dynamic> json) => CropMatchResult(
+  factory CropMatchResult.fromJson(Map<String, dynamic> json) =>
+      CropMatchResult(
         demandRequestId: json['demand_request_id'] as String,
         matches: (json['matches'] as List? ?? [])
             .map((e) => MarketMatch.fromJson(e as Map<String, dynamic>))
@@ -285,6 +299,24 @@ class CropMatchResult {
   final String demandRequestId;
   final List<MarketMatch> matches;
   final String status;
+}
+
+class PartyProfile {
+  PartyProfile({this.id, this.name, this.phone, this.email, this.address});
+
+  factory PartyProfile.fromJson(Map<String, dynamic> json) => PartyProfile(
+    id: json['id'] as String?,
+    name: json['name'] as String?,
+    phone: json['phone'] as String?,
+    email: json['email'] as String?,
+    address: json['address'] as String?,
+  );
+
+  final String? id;
+  final String? name;
+  final String? phone;
+  final String? email;
+  final String? address;
 }
 
 class DemandRequest {
@@ -301,24 +333,28 @@ class DemandRequest {
     this.status = 'open',
     this.createdAt,
     this.matches = const [],
+    this.farmerProfile,
   });
 
   factory DemandRequest.fromJson(Map<String, dynamic> json) => DemandRequest(
-        id: json['id'] as String,
-        cropName: json['crop_name'] as String? ?? '',
-        shelfLifeDays: _int(json['shelf_life_days']),
-        harvestedDate: _date(json['harvested_date']),
-        expectedPrice: _num(json['expected_price']),
-        quantityKg: _num(json['quantity_kg']),
-        remainingQuantityKg: _num(json['remaining_quantity_kg']),
-        soldQuantityKg: _num(json['sold_quantity_kg']) ?? 0,
-        shelfLifeExpiry: _date(json['shelf_life_expiry']),
-        status: json['status'] as String? ?? 'open',
-        createdAt: _date(json['created_at']),
-        matches: (json['matches'] as List? ?? [])
-            .map((e) => RescueMatch.fromJson(e as Map<String, dynamic>))
-            .toList(),
-      );
+    id: json['id'] as String,
+    cropName: json['crop_name'] as String? ?? '',
+    shelfLifeDays: _int(json['shelf_life_days']),
+    harvestedDate: _date(json['harvested_date']),
+    expectedPrice: _num(json['expected_price']),
+    quantityKg: _num(json['quantity_kg']),
+    remainingQuantityKg: _num(json['remaining_quantity_kg']),
+    soldQuantityKg: _num(json['sold_quantity_kg']) ?? 0,
+    shelfLifeExpiry: _date(json['shelf_life_expiry']),
+    status: json['status'] as String? ?? 'open',
+    createdAt: _date(json['created_at']),
+    matches: (json['matches'] as List? ?? [])
+        .map((e) => RescueMatch.fromJson(e as Map<String, dynamic>))
+        .toList(),
+    farmerProfile: _map(json['farmer_profile']) == null
+        ? null
+        : PartyProfile.fromJson(_map(json['farmer_profile'])!),
+  );
 
   final String id;
   final String cropName;
@@ -332,12 +368,13 @@ class DemandRequest {
   final String status;
   final DateTime? createdAt;
   final List<RescueMatch> matches;
+  final PartyProfile? farmerProfile;
 
   Map<String, dynamic> get matchesPayload => {
-        'demand_request_id': id,
-        'crop_name': cropName,
-        'status': status,
-      };
+    'demand_request_id': id,
+    'crop_name': cropName,
+    'status': status,
+  };
 }
 
 class RescueMatch {
@@ -352,16 +389,16 @@ class RescueMatch {
   });
 
   factory RescueMatch.fromJson(Map<String, dynamic> json) => RescueMatch(
-        id: json['id'] as String,
-        demandRequestId: json['demand_request_id'] as String?,
-        status: json['status'] as String? ?? 'open',
-        confirmedAt: _date(json['confirmed_at']),
-        createdAt: _date(json['created_at']),
-        buyerInfo: json['matched_buyer_info'] == null
-            ? null
-            : MarketMatch.fromJson(_map(json['matched_buyer_info']) ?? {}),
-        quantityKg: _num(json['quantity_kg']),
-      );
+    id: json['id'] as String,
+    demandRequestId: json['demand_request_id'] as String?,
+    status: json['status'] as String? ?? 'open',
+    confirmedAt: _date(json['confirmed_at']),
+    createdAt: _date(json['created_at']),
+    buyerInfo: json['matched_buyer_info'] == null
+        ? null
+        : MarketMatch.fromJson(_map(json['matched_buyer_info']) ?? {}),
+    quantityKg: _num(json['quantity_kg']),
+  );
 
   final String id;
   final String? demandRequestId;
@@ -397,9 +434,9 @@ class PairedDevice {
   PairedDevice({required this.id, this.deviceUid});
 
   factory PairedDevice.fromJson(Map<String, dynamic> json) => PairedDevice(
-        id: json['id'] as String,
-        deviceUid: json['device_uid'] as String?,
-      );
+    id: json['id'] as String,
+    deviceUid: json['device_uid'] as String?,
+  );
 
   final String id;
   final String? deviceUid;
@@ -409,10 +446,10 @@ class AgentResult {
   AgentResult({required this.agentType, this.resultJson, this.createdAt});
 
   factory AgentResult.fromJson(Map<String, dynamic> json) => AgentResult(
-        agentType: json['agent_type'] as String? ?? '',
-        resultJson: json['result_json'],
-        createdAt: _date(json['created_at']),
-      );
+    agentType: json['agent_type'] as String? ?? '',
+    resultJson: json['result_json'],
+    createdAt: _date(json['created_at']),
+  );
 
   final String agentType;
   final dynamic resultJson;
@@ -426,14 +463,13 @@ class AnalysisStatus {
     required this.results,
   });
 
-  factory AnalysisStatus.fromJson(Map<String, dynamic> json) =>
-      AnalysisStatus(
-        id: json['id'] as String,
-        analysisStatus: json['analysis_status'] as String? ?? 'pending',
-        results: (json['results'] as List? ?? [])
-            .map((e) => AgentResult.fromJson(e as Map<String, dynamic>))
-            .toList(),
-      );
+  factory AnalysisStatus.fromJson(Map<String, dynamic> json) => AnalysisStatus(
+    id: json['id'] as String,
+    analysisStatus: json['analysis_status'] as String? ?? 'pending',
+    results: (json['results'] as List? ?? [])
+        .map((e) => AgentResult.fromJson(e as Map<String, dynamic>))
+        .toList(),
+  );
 
   final String id;
   final String analysisStatus;
@@ -525,12 +561,12 @@ class ChatMessage {
   });
 
   factory ChatMessage.fromJson(Map<String, dynamic> json) => ChatMessage(
-        id: json['id'] as String? ?? 'msg_${DateTime.now().millisecondsSinceEpoch}',
-        role: json['role'] as String? ?? 'user',
-        content: json['content'] as String? ?? '',
-        imageUrl: json['image_url'] as String?,
-        createdAt: _date(json['created_at']),
-      );
+    id: json['id'] as String? ?? 'msg_${DateTime.now().millisecondsSinceEpoch}',
+    role: json['role'] as String? ?? 'user',
+    content: json['content'] as String? ?? '',
+    imageUrl: json['image_url'] as String?,
+    createdAt: _date(json['created_at']),
+  );
 
   final String id;
   final String role;
@@ -549,22 +585,24 @@ class Recommendations {
     required this.yieldForecasts,
   });
 
-  factory Recommendations.fromJson(Map<String, dynamic> json) =>
-      Recommendations(
-        healthAnalysis: json['health_analysis'] == null
-            ? null
-            : AgentResult.fromJson(json['health_analysis'] as Map<String, dynamic>),
-        yieldAnalysis: json['yield_analysis'] == null
-            ? null
-            : AgentResult.fromJson(json['yield_analysis'] as Map<String, dynamic>),
-        nextSeason: json['next_season_recommendations'] == null
-            ? null
-            : AgentResult.fromJson(
-                json['next_season_recommendations'] as Map<String, dynamic>),
-        yieldForecasts: (json['yield_forecasts'] as List? ?? [])
-            .map((e) => YieldForecast.fromJson(e as Map<String, dynamic>))
-            .toList(),
-      );
+  factory Recommendations.fromJson(
+    Map<String, dynamic> json,
+  ) => Recommendations(
+    healthAnalysis: json['health_analysis'] == null
+        ? null
+        : AgentResult.fromJson(json['health_analysis'] as Map<String, dynamic>),
+    yieldAnalysis: json['yield_analysis'] == null
+        ? null
+        : AgentResult.fromJson(json['yield_analysis'] as Map<String, dynamic>),
+    nextSeason: json['next_season_recommendations'] == null
+        ? null
+        : AgentResult.fromJson(
+            json['next_season_recommendations'] as Map<String, dynamic>,
+          ),
+    yieldForecasts: (json['yield_forecasts'] as List? ?? [])
+        .map((e) => YieldForecast.fromJson(e as Map<String, dynamic>))
+        .toList(),
+  );
 
   final AgentResult? healthAnalysis;
   final AgentResult? yieldAnalysis;
@@ -576,9 +614,9 @@ class YieldForecast {
   YieldForecast({this.expectedYieldKg, this.createdAt});
 
   factory YieldForecast.fromJson(Map<String, dynamic> json) => YieldForecast(
-        expectedYieldKg: _num(json['expected_yield_kg']),
-        createdAt: _date(json['created_at']),
-      );
+    expectedYieldKg: _num(json['expected_yield_kg']),
+    createdAt: _date(json['created_at']),
+  );
 
   final double? expectedYieldKg;
   final DateTime? createdAt;
@@ -595,13 +633,13 @@ class AppSettings {
   });
 
   factory AppSettings.fromJson(Map<String, dynamic> json) => AppSettings(
-        preferredLanguage: json['preferred_language'] as String? ?? 'en',
-        soilType: json['soil_type'] as String?,
-        areaLocality: json['area_locality'] as String?,
-        notificationWatering: json['notification_watering'] as bool? ?? true,
-        notificationMatch: json['notification_match'] as bool? ?? true,
-        notificationSystem: json['notification_system'] as bool? ?? true,
-      );
+    preferredLanguage: json['preferred_language'] as String? ?? 'en',
+    soilType: json['soil_type'] as String?,
+    areaLocality: json['area_locality'] as String?,
+    notificationWatering: json['notification_watering'] as bool? ?? true,
+    notificationMatch: json['notification_match'] as bool? ?? true,
+    notificationSystem: json['notification_system'] as bool? ?? true,
+  );
 
   String preferredLanguage;
   String? soilType;
@@ -612,17 +650,13 @@ class AppSettings {
 }
 
 class ImpactMetric {
-  ImpactMetric({
-    required this.metricType,
-    this.metricValue,
-    this.createdAt,
-  });
+  ImpactMetric({required this.metricType, this.metricValue, this.createdAt});
 
   factory ImpactMetric.fromJson(Map<String, dynamic> json) => ImpactMetric(
-        metricType: json['metric_type'] as String? ?? '',
-        metricValue: json['metric_value'],
-        createdAt: _date(json['created_at']),
-      );
+    metricType: json['metric_type'] as String? ?? '',
+    metricValue: json['metric_value'],
+    createdAt: _date(json['created_at']),
+  );
 
   final String metricType;
   final dynamic metricValue;
@@ -671,16 +705,18 @@ class ImpactMetricDetails {
 }
 
 class ImpactMetrics {
-  ImpactMetrics({required this.precisionAgriculture, required this.circularSupplyChain});
+  ImpactMetrics({
+    required this.precisionAgriculture,
+    required this.circularSupplyChain,
+  });
 
   factory ImpactMetrics.fromJson(Map<String, dynamic> json) {
     final groups = json['groups'] is Map
         ? Map<String, dynamic>.from(json['groups'] as Map)
         : <String, dynamic>{};
-    List<ImpactMetricDetails> parse(String key) =>
-        (groups[key] as List? ?? [])
-            .map((e) => ImpactMetricDetails.fromJson(e as Map<String, dynamic>))
-            .toList();
+    List<ImpactMetricDetails> parse(String key) => (groups[key] as List? ?? [])
+        .map((e) => ImpactMetricDetails.fromJson(e as Map<String, dynamic>))
+        .toList();
     return ImpactMetrics(
       precisionAgriculture: parse('precision_agriculture'),
       circularSupplyChain: parse('circular_supply_chain'),
@@ -698,11 +734,11 @@ class AccountInfo {
   AccountInfo({required this.profile, required this.impactMetrics});
 
   factory AccountInfo.fromJson(Map<String, dynamic> json) => AccountInfo(
-        profile: FarmerProfile.fromJson(json['profile'] as Map<String, dynamic>),
-        impactMetrics: (json['impact_metrics'] as List? ?? [])
-            .map((e) => ImpactMetric.fromJson(e as Map<String, dynamic>))
-            .toList(),
-      );
+    profile: FarmerProfile.fromJson(json['profile'] as Map<String, dynamic>),
+    impactMetrics: (json['impact_metrics'] as List? ?? [])
+        .map((e) => ImpactMetric.fromJson(e as Map<String, dynamic>))
+        .toList(),
+  );
 
   final FarmerProfile profile;
   final List<ImpactMetric> impactMetrics;
@@ -711,9 +747,8 @@ class AccountInfo {
 class WaterSaved {
   WaterSaved({required this.totalLiters});
 
-  factory WaterSaved.fromJson(Map<String, dynamic> json) => WaterSaved(
-        totalLiters: (_num(json['total_water_saved_liters']) ?? 0),
-      );
+  factory WaterSaved.fromJson(Map<String, dynamic> json) =>
+      WaterSaved(totalLiters: (_num(json['total_water_saved_liters']) ?? 0));
 
   final double totalLiters;
 }
@@ -733,19 +768,19 @@ class InventoryItem {
   });
 
   factory InventoryItem.fromJson(Map<String, dynamic> json) => InventoryItem(
-        id: json['id'] as String,
-        farmId: json['farm_id'] as String,
-        cropName: json['crop_name'] as String? ?? '',
-        quantity: (_num(json['quantity']) ?? 0).toDouble(),
-        harvestedDate: json['harvested_date'] as String?,
-        storageType: json['storage_type'] as String?,
-        qualityGrade: json['quality_grade'] as String?,
-        fieldId: json['field_id'] as String?,
-        statusInfo: json['status_info'] != null
-            ? InventoryStatus.fromJson(json['status_info'] as Map<String, dynamic>)
-            : null,
-        createdAt: _date(json['created_at']),
-      );
+    id: json['id'] as String,
+    farmId: json['farm_id'] as String,
+    cropName: json['crop_name'] as String? ?? '',
+    quantity: (_num(json['quantity']) ?? 0).toDouble(),
+    harvestedDate: json['harvested_date'] as String?,
+    storageType: json['storage_type'] as String?,
+    qualityGrade: json['quality_grade'] as String?,
+    fieldId: json['field_id'] as String?,
+    statusInfo: json['status_info'] != null
+        ? InventoryStatus.fromJson(json['status_info'] as Map<String, dynamic>)
+        : null,
+    createdAt: _date(json['created_at']),
+  );
 
   final String id;
   final String farmId;
@@ -770,7 +805,8 @@ class InventoryStatus {
     this.createdAt,
   });
 
-  factory InventoryStatus.fromJson(Map<String, dynamic> json) => InventoryStatus(
+  factory InventoryStatus.fromJson(Map<String, dynamic> json) =>
+      InventoryStatus(
         id: json['id'] as String,
         inventoryId: json['inventory_id'] as String,
         status: json['status'] as String? ?? 'fresh',
@@ -807,7 +843,8 @@ class CropPerformance {
     this.createdAt,
   });
 
-  factory CropPerformance.fromJson(Map<String, dynamic> json) => CropPerformance(
+  factory CropPerformance.fromJson(Map<String, dynamic> json) =>
+      CropPerformance(
         id: json['id'] as String,
         farmId: json['farm_id'] as String,
         crop: json['crop'] as String? ?? '',
@@ -851,13 +888,13 @@ class VendorRequest {
   });
 
   factory VendorRequest.fromJson(Map<String, dynamic> json) => VendorRequest(
-        id: json['id'] as String,
-        cropName: json['crop_name'] as String? ?? '',
-        quantityNeeded: _num(json['quantity_needed']),
-        expectedPrice: _num(json['expected_price']),
-        status: json['status'] as String? ?? 'open',
-        createdAt: _date(json['created_at']),
-      );
+    id: json['id'] as String,
+    cropName: json['crop_name'] as String? ?? '',
+    quantityNeeded: _num(json['quantity_needed']),
+    expectedPrice: _num(json['expected_price']),
+    status: json['status'] as String? ?? 'open',
+    createdAt: _date(json['created_at']),
+  );
 
   final String id;
   final String cropName;
@@ -883,21 +920,22 @@ class WeatherInfo {
   });
 
   factory WeatherInfo.fromJson(Map<String, dynamic> json) => WeatherInfo(
-        avgTempC: _num(json['avg_temp_c']),
-        maxTempC: _num(json['max_temp_c']),
-        humidityPct: _num(json['humidity_pct']),
-        rainfallMmToday: _num(json['rainfall_mm_today']),
-        rainfallForecastMm24h: _num(json['rainfall_forecast_mm_24h']),
-        sunlightHours: _num(json['sunlight_hours']),
-        windSpeedKmph: _num(json['wind_speed_kmph']),
-        condition: json['condition'] as String?,
-        source: json['source'] as String?,
-        recordedAt: _date(json['recorded_at']),
-        irrigation: json['irrigation'] == null
-            ? null
-            : IrrigationDecision.fromJson(
-                Map<String, dynamic>.from(json['irrigation'] as Map)),
-      );
+    avgTempC: _num(json['avg_temp_c']),
+    maxTempC: _num(json['max_temp_c']),
+    humidityPct: _num(json['humidity_pct']),
+    rainfallMmToday: _num(json['rainfall_mm_today']),
+    rainfallForecastMm24h: _num(json['rainfall_forecast_mm_24h']),
+    sunlightHours: _num(json['sunlight_hours']),
+    windSpeedKmph: _num(json['wind_speed_kmph']),
+    condition: json['condition'] as String?,
+    source: json['source'] as String?,
+    recordedAt: _date(json['recorded_at']),
+    irrigation: json['irrigation'] == null
+        ? null
+        : IrrigationDecision.fromJson(
+            Map<String, dynamic>.from(json['irrigation'] as Map),
+          ),
+  );
 
   final double? avgTempC;
   final double? maxTempC;

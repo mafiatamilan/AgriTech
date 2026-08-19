@@ -19,9 +19,12 @@ class _MarketScreenState extends ConsumerState<MarketScreen> {
   final _shelfLifeController = TextEditingController();
   final _priceController = TextEditingController();
   DateTime? _harvestedDate;
+  String _inventoryChoice = _manualCropChoice;
   CropMatchResult? _lastResult;
   bool _submitting = false;
   bool _locating = false;
+
+  static const _manualCropChoice = '__manual__';
 
   @override
   void dispose() {
@@ -55,7 +58,9 @@ class _MarketScreenState extends ConsumerState<MarketScreen> {
     }
     setState(() => _submitting = true);
     try {
-      final result = await ref.read(backendProvider).cropMatch(
+      final result = await ref
+          .read(backendProvider)
+          .cropMatch(
             cropName: _cropController.text.trim(),
             quantityKg: quantity,
             shelfLifeDays: int.tryParse(_shelfLifeController.text),
@@ -68,12 +73,33 @@ class _MarketScreenState extends ConsumerState<MarketScreen> {
       _quantityController.clear();
       _shelfLifeController.clear();
       _priceController.clear();
-      _harvestedDate = null;
+      setState(() {
+        _harvestedDate = null;
+        _inventoryChoice = _manualCropChoice;
+      });
     } on Exception catch (e) {
       if (mounted) showError(context, e);
     } finally {
       if (mounted) setState(() => _submitting = false);
     }
+  }
+
+  void _selectInventoryCrop(String value, List<InventoryItem> inventory) {
+    setState(() {
+      _inventoryChoice = value;
+      if (value == _manualCropChoice) {
+        return;
+      }
+      final matches = inventory.where((item) => item.id == value);
+      if (matches.isEmpty) {
+        _inventoryChoice = _manualCropChoice;
+        return;
+      }
+      final item = matches.first;
+      _cropController.text = item.cropName;
+      _quantityController.text = item.quantity.toStringAsFixed(2);
+      _harvestedDate = DateTime.tryParse(item.harvestedDate ?? '');
+    });
   }
 
   Future<void> _setAddress(Farm farm) async {
@@ -143,10 +169,11 @@ class _MarketScreenState extends ConsumerState<MarketScreen> {
     try {
       await ref.read(backendProvider).confirmMatch(match.id);
       ref.invalidate(marketRequestsProvider);
+      ref.invalidate(inventoryProvider);
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(l10n.marketSaleConfirmed)),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text(l10n.marketSaleConfirmed)));
       }
     } on Exception catch (e) {
       if (mounted) showError(context, e);
@@ -157,6 +184,16 @@ class _MarketScreenState extends ConsumerState<MarketScreen> {
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context);
     final requests = ref.watch(marketRequestsProvider);
+    final inventory =
+        ref.watch(inventoryProvider).value ?? const <InventoryItem>[];
+    final availableInventory = inventory
+        .where((item) => item.cropName.trim().isNotEmpty && item.quantity > 0)
+        .toList();
+    final selectedInventoryId =
+        _inventoryChoice == _manualCropChoice ||
+            availableInventory.any((item) => item.id == _inventoryChoice)
+        ? _inventoryChoice
+        : _manualCropChoice;
 
     return Scaffold(
       appBar: AppBar(title: Text(l10n.navMarket)),
@@ -172,16 +209,22 @@ class _MarketScreenState extends ConsumerState<MarketScreen> {
               shelfLifeController: _shelfLifeController,
               priceController: _priceController,
               harvestedDate: _harvestedDate,
+              inventoryItems: availableInventory,
+              selectedInventoryId: selectedInventoryId,
               submitting: _submitting,
               locating: _locating,
+              onInventoryChanged: (value) =>
+                  _selectInventoryCrop(value, availableInventory),
               onPickDate: _pickDate,
               onSubmit: _submitMatch,
             ),
             if (_lastResult != null) _MatchResultCard(result: _lastResult!),
             Padding(
               padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
-              child: Text(l10n.marketRequests,
-                  style: Theme.of(context).textTheme.titleMedium),
+              child: Text(
+                l10n.marketRequests,
+                style: Theme.of(context).textTheme.titleMedium,
+              ),
             ),
             requests.when(
               loading: () => const Padding(
@@ -211,9 +254,10 @@ class _MarketScreenState extends ConsumerState<MarketScreen> {
                                 ? null
                                 : () => _confirmSale(
                                     r.matches
-                                        .where((m) => !m.isConfirmed)
-                                        .firstOrNull ??
-                                        r.matches.first),
+                                            .where((m) => !m.isConfirmed)
+                                            .firstOrNull ??
+                                        r.matches.first,
+                                  ),
                           ),
                       ],
               ),
@@ -259,8 +303,11 @@ class _AddMatchForm extends StatelessWidget {
     required this.shelfLifeController,
     required this.priceController,
     required this.harvestedDate,
+    required this.inventoryItems,
+    required this.selectedInventoryId,
     required this.submitting,
     required this.locating,
+    required this.onInventoryChanged,
     required this.onPickDate,
     required this.onSubmit,
   });
@@ -270,29 +317,65 @@ class _AddMatchForm extends StatelessWidget {
   final TextEditingController shelfLifeController;
   final TextEditingController priceController;
   final DateTime? harvestedDate;
+  final List<InventoryItem> inventoryItems;
+  final String selectedInventoryId;
   final bool submitting;
   final bool locating;
+  final ValueChanged<String> onInventoryChanged;
   final VoidCallback onPickDate;
   final VoidCallback onSubmit;
 
   @override
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context);
+    final selectedValue =
+        selectedInventoryId == _MarketScreenState._manualCropChoice ||
+            inventoryItems.any((item) => item.id == selectedInventoryId)
+        ? selectedInventoryId
+        : _MarketScreenState._manualCropChoice;
     return Card(
       child: Padding(
         padding: const EdgeInsets.all(16),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
+            DropdownButtonFormField<String>(
+              initialValue: selectedValue,
+              decoration: const InputDecoration(
+                labelText: 'Crop source',
+                isDense: true,
+              ),
+              items: [
+                const DropdownMenuItem(
+                  value: _MarketScreenState._manualCropChoice,
+                  child: Text('Manual entry'),
+                ),
+                for (final item in inventoryItems)
+                  DropdownMenuItem(
+                    value: item.id,
+                    child: Text(
+                      '${item.cropName} (${item.quantity.toStringAsFixed(0)} kg)',
+                    ),
+                  ),
+              ],
+              onChanged: (value) {
+                if (value != null) onInventoryChanged(value);
+              },
+            ),
+            const SizedBox(height: 12),
             TextField(
               controller: cropController,
               decoration: InputDecoration(
-                  labelText: l10n.marketCropName, isDense: true),
+                labelText: l10n.marketCropName,
+                isDense: true,
+              ),
             ),
             const SizedBox(height: 12),
             TextField(
               controller: quantityController,
-              keyboardType: const TextInputType.numberWithOptions(decimal: true),
+              keyboardType: const TextInputType.numberWithOptions(
+                decimal: true,
+              ),
               decoration: const InputDecoration(
                 labelText: 'Quantity available (kg)',
                 isDense: true,
@@ -302,15 +385,19 @@ class _AddMatchForm extends StatelessWidget {
             TextField(
               controller: shelfLifeController,
               keyboardType: TextInputType.number,
-              decoration:
-                  InputDecoration(labelText: l10n.marketShelfLife, isDense: true),
+              decoration: InputDecoration(
+                labelText: l10n.marketShelfLife,
+                isDense: true,
+              ),
             ),
             const SizedBox(height: 12),
             TextField(
               controller: priceController,
               keyboardType: TextInputType.number,
-              decoration:
-                  InputDecoration(labelText: l10n.marketExpectedPrice, isDense: true),
+              decoration: InputDecoration(
+                labelText: l10n.marketExpectedPrice,
+                isDense: true,
+              ),
             ),
             const SizedBox(height: 12),
             InkWell(
@@ -336,13 +423,72 @@ class _AddMatchForm extends StatelessWidget {
                     ? const SizedBox(
                         width: 18,
                         height: 18,
-                        child: CircularProgressIndicator(strokeWidth: 2))
+                        child: CircularProgressIndicator(strokeWidth: 2),
+                      )
                     : Text(l10n.marketFindBuyers),
               ),
             ),
           ],
         ),
       ),
+    );
+  }
+}
+
+void _showBuyerDetails(BuildContext context, MarketMatch match) {
+  showDialog<void>(
+    context: context,
+    builder: (context) => AlertDialog(
+      title: Text(match.buyerName),
+      content: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          _DetailRow(
+            icon: Icons.phone_outlined,
+            label: 'Phone',
+            value: match.buyerPhone,
+          ),
+          _DetailRow(
+            icon: Icons.email_outlined,
+            label: 'Email',
+            value: match.buyerEmail,
+          ),
+          _DetailRow(
+            icon: Icons.location_on_outlined,
+            label: 'Address',
+            value: match.buyerAddress,
+          ),
+        ],
+      ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.of(context).pop(),
+          child: const Text('Close'),
+        ),
+      ],
+    ),
+  );
+}
+
+class _DetailRow extends StatelessWidget {
+  const _DetailRow({
+    required this.icon,
+    required this.label,
+    required this.value,
+  });
+
+  final IconData icon;
+  final String label;
+  final String? value;
+
+  @override
+  Widget build(BuildContext context) {
+    return ListTile(
+      contentPadding: EdgeInsets.zero,
+      dense: true,
+      leading: Icon(icon),
+      title: Text(label),
+      subtitle: Text(value == null || value!.trim().isEmpty ? '—' : value!),
     );
   }
 }
@@ -364,15 +510,23 @@ class _MatchResultCard extends StatelessWidget {
             : Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(l10n.marketFindBuyers,
-                      style: Theme.of(context).textTheme.titleSmall),
+                  Text(
+                    l10n.marketFindBuyers,
+                    style: Theme.of(context).textTheme.titleSmall,
+                  ),
                   const SizedBox(height: 8),
                   for (final m in result.matches)
                     ListTile(
                       contentPadding: EdgeInsets.zero,
                       dense: true,
                       leading: const Icon(Icons.storefront),
-                      title: Text(m.buyerName),
+                      title: Align(
+                        alignment: Alignment.centerLeft,
+                        child: TextButton(
+                          onPressed: () => _showBuyerDetails(context, m),
+                          child: Text(m.buyerName),
+                        ),
+                      ),
                       subtitle: Text(
                         '${money(m.offeredPrice)} · '
                         '${m.distanceKm?.toStringAsFixed(1) ?? '—'} km',
@@ -381,8 +535,8 @@ class _MatchResultCard extends StatelessWidget {
                         m.shelfLifeCompatible == null
                             ? l10n.marketShelfLifeUnknown
                             : m.shelfLifeCompatible!
-                                ? l10n.marketShelfLifeCompatible
-                                : l10n.marketShelfLifeUnknown,
+                            ? l10n.marketShelfLifeCompatible
+                            : l10n.marketShelfLifeUnknown,
                         style: TextStyle(
                           color: m.shelfLifeCompatible == true
                               ? Colors.green.shade700
@@ -427,7 +581,8 @@ class _RequestCard extends StatelessWidget {
             ),
             trailing: Chip(
               label: Text(
-                  isMatched ? l10n.marketStatusMatched : l10n.marketStatusOpen),
+                isMatched ? l10n.marketStatusMatched : l10n.marketStatusOpen,
+              ),
               backgroundColor: isMatched ? const Color(0xFFE8F5E9) : null,
             ),
           ),
@@ -435,7 +590,15 @@ class _RequestCard extends StatelessWidget {
             ListTile(
               dense: true,
               contentPadding: const EdgeInsets.symmetric(horizontal: 24),
-              title: Text(m.buyerInfo?.buyerName ?? ''),
+              title: Align(
+                alignment: Alignment.centerLeft,
+                child: TextButton(
+                  onPressed: m.buyerInfo == null
+                      ? null
+                      : () => _showBuyerDetails(context, m.buyerInfo!),
+                  child: Text(m.buyerInfo?.buyerName ?? 'Vendor'),
+                ),
+              ),
               subtitle: Text(
                 '${m.quantityKg?.toStringAsFixed(0) ?? '—'} kg · '
                 '${money(m.buyerInfo?.offeredPrice)} · '

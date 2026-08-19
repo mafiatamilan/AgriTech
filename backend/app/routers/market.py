@@ -20,6 +20,59 @@ def _strip(match: dict) -> dict:
     return match
 
 
+def _as_float(value) -> float:
+    if value is None:
+        return 0.0
+    try:
+        return float(value)
+    except (TypeError, ValueError):
+        return 0.0
+
+
+def _enrich_buyer_info(sb, buyer_info: dict) -> dict:
+    if not isinstance(buyer_info, dict):
+        return {}
+    buyer_id = buyer_info.get("buyer_farmer_id")
+    if not buyer_id:
+        return buyer_info
+    vendor = sb.table("vendors").select("business_name, contact_phone, contact_email, address") \
+        .eq("id", buyer_id).limit(1).execute()
+    if vendor.data:
+        row = vendor.data[0]
+        buyer_info["buyer_name"] = row.get("business_name") or buyer_info.get("buyer_name") or "Vendor"
+        buyer_info["buyer_phone"] = row.get("contact_phone") or buyer_info.get("buyer_phone")
+        buyer_info["buyer_email"] = row.get("contact_email") or buyer_info.get("buyer_email")
+        buyer_info["buyer_address"] = row.get("address") or buyer_info.get("buyer_address")
+    return buyer_info
+
+
+def _reduce_inventory_for_sale(sb, farmer_id: str, crop_name: str, quantity_kg: float) -> None:
+    farms = sb.table("farms").select("id").eq("farmer_id", farmer_id).execute()
+    farm_ids = [farm["id"] for farm in farms.data or []]
+    if not farm_ids:
+        return
+    remaining_to_reduce = quantity_kg
+    rows = sb.table("inventory").select("*") \
+        .in_("farm_id", farm_ids) \
+        .eq("crop_name", crop_name) \
+        .gt("quantity", 0) \
+        .order("harvested_date", desc=False) \
+        .execute()
+    for item in rows.data or []:
+        if remaining_to_reduce <= 0:
+            break
+        current_qty = _as_float(item.get("quantity"))
+        if current_qty <= 0:
+            continue
+        reduce_by = min(current_qty, remaining_to_reduce)
+        next_qty = current_qty - reduce_by
+        update = {"quantity": next_qty}
+        if next_qty <= 0:
+            update["status"] = "sold"
+        sb.table("inventory").update(update).eq("id", item["id"]).execute()
+        remaining_to_reduce -= reduce_by
+
+
 @router.get("/address-prompt")
 async def address_prompt(current_farmer: dict = Depends(get_current_farmer)):
     sb = get_supabase()
@@ -43,13 +96,17 @@ async def crop_match(
     if quantity_kg is not None and quantity_kg <= 0:
         raise HTTPException(status_code=422, detail="quantity_kg must be greater than zero")
 
+    # Inventory is scoped through farms; it does not have a farmer_id column.
+    farmer_farms = sb.table("farms").select("id") \
+        .eq("farmer_id", current_farmer["id"]).execute()
+    farm_ids = [farm["id"] for farm in farmer_farms.data or []]
     inv_resp = sb.table("inventory").select("id") \
-        .eq("farmer_id", current_farmer["id"]) \
+        .in_("farm_id", farm_ids) \
         .eq("crop_name", req.crop_name) \
         .order("created_at", desc=True) \
-        .limit(1).execute()
+        .limit(1).execute() if farm_ids else None
 
-    if inv_resp.data:
+    if inv_resp and inv_resp.data:
         inv_id = inv_resp.data[0]["id"]
         inventory_row = sb.table("inventory").select("quantity").eq("id", inv_id).limit(1).execute()
         if quantity_kg is None and inventory_row.data:
@@ -125,7 +182,8 @@ async def list_requests(current_farmer: dict = Depends(get_current_farmer)):
         r["matches"] = []
         for m in by_request.get(r["id"], []):
             if isinstance(m.get("matched_buyer_info"), dict):
-                m["matched_buyer_info"] = _strip(dict(m["matched_buyer_info"]))
+                buyer_info = _strip(dict(m["matched_buyer_info"]))
+                m["matched_buyer_info"] = _enrich_buyer_info(sb, buyer_info)
             r["matches"].append(m)
     return requests
 
@@ -189,9 +247,13 @@ async def confirm_match(
         if not dr_resp.data:
             raise HTTPException(status_code=404, detail="Demand request not found")
         demand_farmer_id = dr_resp.data[0]["farmer_id"]
+        match["demand_requests"] = dr_resp.data[0]
 
     if demand_farmer_id != current_farmer["id"]:
         raise HTTPException(status_code=403, detail="Not authorized to confirm this match")
+
+    if match.get("status") == "confirmed":
+        return {"status": "confirmed", "match_id": match_id}
 
     from datetime import datetime
     sb.table("rescue_matches").update({
@@ -212,6 +274,15 @@ async def confirm_match(
         sb.table("rescue_matches").update({"status": "rejected"}) \
             .eq("demand_request_id", match["demand_request_id"]) \
             .neq("id", match_id).execute()
+
+    crop_name = (
+        match.get("demand_requests", {}).get("crop_name")
+        if isinstance(match.get("demand_requests"), dict)
+        else None
+    )
+    quantity = _as_float(match.get("quantity_kg"))
+    if crop_name and quantity > 0:
+        _reduce_inventory_for_sale(sb, current_farmer["id"], crop_name, quantity)
 
     # Notify counter-party if buyer info has an identifier
     buyer_info = match.get("matched_buyer_info", {})

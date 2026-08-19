@@ -348,6 +348,65 @@ class _VendorRequestTile extends StatelessWidget {
   }
 }
 
+void _showFarmerDetails(BuildContext context, PartyProfile farmer) {
+  final name = farmer.name?.trim().isNotEmpty == true ? farmer.name! : 'Farmer';
+  showDialog<void>(
+    context: context,
+    builder: (context) => AlertDialog(
+      title: Text(name),
+      content: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          _ProfileDetailRow(
+            icon: Icons.phone_outlined,
+            label: 'Phone',
+            value: farmer.phone,
+          ),
+          _ProfileDetailRow(
+            icon: Icons.email_outlined,
+            label: 'Email',
+            value: farmer.email,
+          ),
+          _ProfileDetailRow(
+            icon: Icons.location_on_outlined,
+            label: 'Address',
+            value: farmer.address,
+          ),
+        ],
+      ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.of(context).pop(),
+          child: const Text('Close'),
+        ),
+      ],
+    ),
+  );
+}
+
+class _ProfileDetailRow extends StatelessWidget {
+  const _ProfileDetailRow({
+    required this.icon,
+    required this.label,
+    required this.value,
+  });
+
+  final IconData icon;
+  final String label;
+  final String? value;
+
+  @override
+  Widget build(BuildContext context) {
+    return ListTile(
+      contentPadding: EdgeInsets.zero,
+      dense: true,
+      leading: Icon(icon),
+      title: Text(label),
+      subtitle: Text(value == null || value!.trim().isEmpty ? '—' : value!),
+    );
+  }
+}
+
 class _OpportunityTile extends StatelessWidget {
   const _OpportunityTile({required this.opportunity, required this.onAccept});
 
@@ -358,14 +417,33 @@ class _OpportunityTile extends StatelessWidget {
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context);
     final available = opportunity.remainingQuantityKg ?? opportunity.quantityKg;
+    final farmer = opportunity.farmerProfile;
+    final farmerName = farmer?.name?.trim().isNotEmpty == true
+        ? farmer!.name!
+        : 'Farmer';
     return Card(
       child: ListTile(
         leading: const Icon(Icons.agriculture_outlined),
         title: Text(opportunity.cropName),
-        subtitle: Text(
-          '${available?.toStringAsFixed(0) ?? '—'} kg available · '
-          '${money(opportunity.expectedPrice)} · '
-          '${opportunity.harvestedDate != null ? fmtDate(opportunity.harvestedDate!) : '—'}',
+        subtitle: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              '${available?.toStringAsFixed(0) ?? '—'} kg available · '
+              '${money(opportunity.expectedPrice)} · '
+              '${opportunity.harvestedDate != null ? fmtDate(opportunity.harvestedDate!) : '—'}',
+            ),
+            Align(
+              alignment: Alignment.centerLeft,
+              child: TextButton.icon(
+                onPressed: farmer == null
+                    ? null
+                    : () => _showFarmerDetails(context, farmer),
+                icon: const Icon(Icons.person_outline, size: 18),
+                label: Text(farmerName),
+              ),
+            ),
+          ],
         ),
         trailing: FilledButton.tonal(
           onPressed: available == null || available <= 0 ? null : onAccept,
