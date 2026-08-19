@@ -51,7 +51,9 @@ class _VendorHomeScreenState extends ConsumerState<VendorHomeScreen> {
     }
     setState(() => _submitting = true);
     try {
-      await ref.read(backendProvider).vendorCreateRequest(
+      await ref
+          .read(backendProvider)
+          .vendorCreateRequest(
             cropName: _cropController.text.trim(),
             quantityNeeded: double.tryParse(_qtyController.text),
             expectedPrice: double.tryParse(_priceController.text),
@@ -89,10 +91,8 @@ class _VendorHomeScreenState extends ConsumerState<VendorHomeScreen> {
             child: Text(l10n.commonCancel),
           ),
           FilledButton(
-            onPressed: () => Navigator.pop(
-              context,
-              double.tryParse(controller.text.trim()),
-            ),
+            onPressed: () =>
+                Navigator.pop(context, double.tryParse(controller.text.trim())),
             child: Text(l10n.vendorAccept),
           ),
         ],
@@ -104,9 +104,9 @@ class _VendorHomeScreenState extends ConsumerState<VendorHomeScreen> {
       await ref.read(backendProvider).vendorAccept(opportunity.id, quantity);
       ref.invalidate(vendorOpportunitiesProvider);
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(l10n.vendorBidPlaced)),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text(l10n.vendorBidPlaced)));
       }
     } on Exception catch (e) {
       if (mounted) showError(context, e);
@@ -117,7 +117,6 @@ class _VendorHomeScreenState extends ConsumerState<VendorHomeScreen> {
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context);
     final requests = ref.watch(vendorRequestsProvider);
-    final opportunities = ref.watch(vendorOpportunitiesProvider);
 
     return Scaffold(
       appBar: AppBar(
@@ -133,17 +132,16 @@ class _VendorHomeScreenState extends ConsumerState<VendorHomeScreen> {
       body: requests.when(
         loading: () => const Center(child: CircularProgressIndicator()),
         error: (e, _) => !_signedUp
-            ? _SignupView(
-                submitting: _submitting,
-                onSignup: _signup,
-              )
+            ? _SignupView(submitting: _submitting, onSignup: _signup)
             : ErrorView(onRetry: () => ref.invalidate(vendorRequestsProvider)),
         data: (items) => ListView(
           children: [
             Padding(
               padding: const EdgeInsets.all(16),
-              child: Text(l10n.vendorNeedTitle,
-                  style: Theme.of(context).textTheme.titleMedium),
+              child: Text(
+                l10n.vendorNeedTitle,
+                style: Theme.of(context).textTheme.titleMedium,
+              ),
             ),
             Card(
               child: Padding(
@@ -153,21 +151,27 @@ class _VendorHomeScreenState extends ConsumerState<VendorHomeScreen> {
                     TextField(
                       controller: _cropController,
                       decoration: InputDecoration(
-                          labelText: l10n.vendorCropName, isDense: true),
+                        labelText: l10n.vendorCropName,
+                        isDense: true,
+                      ),
                     ),
                     const SizedBox(height: 12),
                     TextField(
                       controller: _qtyController,
                       keyboardType: TextInputType.number,
                       decoration: InputDecoration(
-                          labelText: l10n.vendorQuantity, isDense: true),
+                        labelText: l10n.vendorQuantity,
+                        isDense: true,
+                      ),
                     ),
                     const SizedBox(height: 12),
                     TextField(
                       controller: _priceController,
                       keyboardType: TextInputType.number,
                       decoration: InputDecoration(
-                          labelText: l10n.vendorExpectedPrice, isDense: true),
+                        labelText: l10n.vendorExpectedPrice,
+                        isDense: true,
+                      ),
                     ),
                     const SizedBox(height: 16),
                     SizedBox(
@@ -178,7 +182,10 @@ class _VendorHomeScreenState extends ConsumerState<VendorHomeScreen> {
                             ? const SizedBox(
                                 width: 18,
                                 height: 18,
-                                child: CircularProgressIndicator(strokeWidth: 2))
+                                child: CircularProgressIndicator(
+                                  strokeWidth: 2,
+                                ),
+                              )
                             : Text(l10n.vendorAdd),
                       ),
                     ),
@@ -188,8 +195,10 @@ class _VendorHomeScreenState extends ConsumerState<VendorHomeScreen> {
             ),
             Padding(
               padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
-              child: Text(l10n.vendorRequests,
-                  style: Theme.of(context).textTheme.titleMedium),
+              child: Text(
+                l10n.vendorRequests,
+                style: Theme.of(context).textTheme.titleMedium,
+              ),
             ),
             if (items.isEmpty)
               Padding(
@@ -201,39 +210,52 @@ class _VendorHomeScreenState extends ConsumerState<VendorHomeScreen> {
             const SizedBox(height: 16),
             Padding(
               padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
-              child: Text(l10n.vendorOpportunities,
-                  style: Theme.of(context).textTheme.titleMedium),
-            ),
-            opportunities.when(
-              loading: () => const Padding(
-                padding: EdgeInsets.all(16),
-                child: Center(child: CircularProgressIndicator()),
+              child: Text(
+                l10n.vendorOpportunities,
+                style: Theme.of(context).textTheme.titleMedium,
               ),
-              error: (e, _) => Padding(
-                padding: const EdgeInsets.all(8),
-                child: ErrorView(
-                  onRetry: () => ref.invalidate(vendorOpportunitiesProvider),
-                ),
-              ),
-              data: (ops) => ops.isEmpty
-                  ? Padding(
-                      padding: const EdgeInsets.all(16),
-                      child: Center(child: Text(l10n.vendorEmpty)),
-                    )
-                  : Column(
-                      children: [
-                        for (final o in ops)
-                          _OpportunityTile(
-                            opportunity: o,
-                            onAccept: () => _accept(o),
-                          ),
-                      ],
-                    ),
             ),
+            _VendorOpportunitiesList(onAccept: _accept),
             const SizedBox(height: 16),
           ],
         ),
       ),
+    );
+  }
+}
+
+class _VendorOpportunitiesList extends ConsumerWidget {
+  const _VendorOpportunitiesList({required this.onAccept});
+
+  final Future<void> Function(DemandRequest opportunity) onAccept;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final l10n = AppLocalizations.of(context);
+    final opportunities = ref.watch(vendorOpportunitiesProvider);
+
+    return opportunities.when(
+      loading: () => const Padding(
+        padding: EdgeInsets.all(16),
+        child: Center(child: CircularProgressIndicator()),
+      ),
+      error: (e, _) => Padding(
+        padding: const EdgeInsets.all(8),
+        child: ErrorView(
+          onRetry: () => ref.invalidate(vendorOpportunitiesProvider),
+        ),
+      ),
+      data: (ops) => ops.isEmpty
+          ? Padding(
+              padding: const EdgeInsets.all(16),
+              child: Center(child: Text(l10n.vendorEmpty)),
+            )
+          : Column(
+              children: [
+                for (final o in ops)
+                  _OpportunityTile(opportunity: o, onAccept: () => onAccept(o)),
+              ],
+            ),
     );
   }
 }
@@ -255,8 +277,10 @@ class _SignupView extends StatelessWidget {
           children: [
             const Icon(Icons.storefront, size: 64, color: AppColors.green),
             const SizedBox(height: 16),
-            Text(l10n.vendorSignupTitle,
-                style: Theme.of(context).textTheme.headlineSmall),
+            Text(
+              l10n.vendorSignupTitle,
+              style: Theme.of(context).textTheme.headlineSmall,
+            ),
             const SizedBox(height: 24),
             FilledButton(
               onPressed: submitting ? null : onSignup,
@@ -264,7 +288,8 @@ class _SignupView extends StatelessWidget {
                   ? const SizedBox(
                       width: 18,
                       height: 18,
-                      child: CircularProgressIndicator(strokeWidth: 2))
+                      child: CircularProgressIndicator(strokeWidth: 2),
+                    )
                   : Text(l10n.vendorSignup),
             ),
           ],
