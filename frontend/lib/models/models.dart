@@ -263,6 +263,9 @@ class DemandRequest {
     this.shelfLifeDays,
     this.harvestedDate,
     this.expectedPrice,
+    this.quantityKg,
+    this.remainingQuantityKg,
+    this.soldQuantityKg = 0,
     this.shelfLifeExpiry,
     this.status = 'open',
     this.createdAt,
@@ -275,6 +278,9 @@ class DemandRequest {
         shelfLifeDays: json['shelf_life_days'] as int?,
         harvestedDate: _date(json['harvested_date']),
         expectedPrice: _num(json['expected_price']),
+        quantityKg: _num(json['quantity_kg']),
+        remainingQuantityKg: _num(json['remaining_quantity_kg']),
+        soldQuantityKg: _num(json['sold_quantity_kg']) ?? 0,
         shelfLifeExpiry: _date(json['shelf_life_expiry']),
         status: json['status'] as String? ?? 'open',
         createdAt: _date(json['created_at']),
@@ -288,6 +294,9 @@ class DemandRequest {
   final int? shelfLifeDays;
   final DateTime? harvestedDate;
   final double? expectedPrice;
+  final double? quantityKg;
+  final double? remainingQuantityKg;
+  final double soldQuantityKg;
   final DateTime? shelfLifeExpiry;
   final String status;
   final DateTime? createdAt;
@@ -308,6 +317,7 @@ class RescueMatch {
     this.confirmedAt,
     this.createdAt,
     this.buyerInfo,
+    this.quantityKg,
   });
 
   factory RescueMatch.fromJson(Map<String, dynamic> json) => RescueMatch(
@@ -324,6 +334,7 @@ class RescueMatch {
                         as Map<String, dynamic>
                     : json['matched_buyer_info'] as Map<String, dynamic>,
               ),
+        quantityKg: _num(json['quantity_kg']),
       );
 
   final String id;
@@ -332,6 +343,7 @@ class RescueMatch {
   final DateTime? confirmedAt;
   final DateTime? createdAt;
   final MarketMatch? buyerInfo;
+  final double? quantityKg;
 
   bool get isConfirmed => status == 'confirmed';
 }

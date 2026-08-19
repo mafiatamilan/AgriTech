@@ -15,6 +15,7 @@ class MarketScreen extends ConsumerStatefulWidget {
 
 class _MarketScreenState extends ConsumerState<MarketScreen> {
   final _cropController = TextEditingController();
+  final _quantityController = TextEditingController();
   final _shelfLifeController = TextEditingController();
   final _priceController = TextEditingController();
   DateTime? _harvestedDate;
@@ -25,6 +26,7 @@ class _MarketScreenState extends ConsumerState<MarketScreen> {
   @override
   void dispose() {
     _cropController.dispose();
+    _quantityController.dispose();
     _shelfLifeController.dispose();
     _priceController.dispose();
     super.dispose();
@@ -43,7 +45,11 @@ class _MarketScreenState extends ConsumerState<MarketScreen> {
 
   Future<void> _submitMatch() async {
     final l10n = AppLocalizations.of(context);
-    if (_cropController.text.trim().isEmpty || _harvestedDate == null) {
+    final quantity = double.tryParse(_quantityController.text.trim());
+    if (_cropController.text.trim().isEmpty ||
+        quantity == null ||
+        quantity <= 0 ||
+        _harvestedDate == null) {
       if (mounted) showError(context, l10n.marketInvalidInput);
       return;
     }
@@ -51,6 +57,7 @@ class _MarketScreenState extends ConsumerState<MarketScreen> {
     try {
       final result = await ref.read(backendProvider).cropMatch(
             cropName: _cropController.text.trim(),
+            quantityKg: quantity,
             shelfLifeDays: int.tryParse(_shelfLifeController.text),
             harvestedDate: _harvestedDate!.toIso8601String(),
             expectedPrice: double.tryParse(_priceController.text),
@@ -58,6 +65,7 @@ class _MarketScreenState extends ConsumerState<MarketScreen> {
       setState(() => _lastResult = result);
       ref.invalidate(marketRequestsProvider);
       _cropController.clear();
+      _quantityController.clear();
       _shelfLifeController.clear();
       _priceController.clear();
       _harvestedDate = null;
@@ -160,6 +168,7 @@ class _MarketScreenState extends ConsumerState<MarketScreen> {
             _AddressPrompt(onSet: _setAddress),
             _AddMatchForm(
               cropController: _cropController,
+              quantityController: _quantityController,
               shelfLifeController: _shelfLifeController,
               priceController: _priceController,
               harvestedDate: _harvestedDate,
@@ -246,6 +255,7 @@ class _AddressPrompt extends ConsumerWidget {
 class _AddMatchForm extends StatelessWidget {
   const _AddMatchForm({
     required this.cropController,
+    required this.quantityController,
     required this.shelfLifeController,
     required this.priceController,
     required this.harvestedDate,
@@ -256,6 +266,7 @@ class _AddMatchForm extends StatelessWidget {
   });
 
   final TextEditingController cropController;
+  final TextEditingController quantityController;
   final TextEditingController shelfLifeController;
   final TextEditingController priceController;
   final DateTime? harvestedDate;
@@ -277,6 +288,15 @@ class _AddMatchForm extends StatelessWidget {
               controller: cropController,
               decoration: InputDecoration(
                   labelText: l10n.marketCropName, isDense: true),
+            ),
+            const SizedBox(height: 12),
+            TextField(
+              controller: quantityController,
+              keyboardType: const TextInputType.numberWithOptions(decimal: true),
+              decoration: const InputDecoration(
+                labelText: 'Quantity available (kg)',
+                isDense: true,
+              ),
             ),
             const SizedBox(height: 12),
             TextField(
@@ -400,6 +420,7 @@ class _RequestCard extends StatelessWidget {
           ListTile(
             title: Text(request.cropName),
             subtitle: Text(
+              '${request.remainingQuantityKg?.toStringAsFixed(0) ?? '—'} kg remaining · '
               '${money(request.expectedPrice)} · '
               '${isMatched ? l10n.marketStatusMatched : l10n.marketStatusOpen}'
               '${daysLeft != null ? ' · ${l10n.marketDaysLeft(daysLeft)}' : ''}',
@@ -416,6 +437,7 @@ class _RequestCard extends StatelessWidget {
               contentPadding: const EdgeInsets.symmetric(horizontal: 24),
               title: Text(m.buyerInfo?.buyerName ?? ''),
               subtitle: Text(
+                '${m.quantityKg?.toStringAsFixed(0) ?? '—'} kg · '
                 '${money(m.buyerInfo?.offeredPrice)} · '
                 '${m.buyerInfo?.distanceKm?.toStringAsFixed(1) ?? '—'} km',
               ),

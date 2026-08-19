@@ -13,6 +13,7 @@ import 'screens/performance/performance_screen.dart';
 import 'screens/recommendations/recommendations_screen.dart';
 import 'screens/settings/settings_screen.dart';
 import 'screens/upload/upload_screen.dart';
+import 'screens/vendor/vendor_home_screen.dart';
 
 /// Bottom-nav destinations (the rest live in the drawer).
 const _primaryTabs = [0, 1, 2, 3];
@@ -110,6 +111,16 @@ class _AppShellState extends ConsumerState<AppShell> {
                 _go(i);
               },
             ),
+          ListTile(
+            leading: const Icon(Icons.local_shipping_outlined),
+            title: const Text('Vendor marketplace'),
+            onTap: () {
+              Navigator.pop(context);
+              Navigator.of(context).push(
+                MaterialPageRoute(builder: (_) => const VendorHomeScreen()),
+              );
+            },
+          ),
           const Divider(),
           ListTile(
             leading: const Icon(Icons.logout),

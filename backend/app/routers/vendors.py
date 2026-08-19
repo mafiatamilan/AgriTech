@@ -26,6 +26,10 @@ class VendorRequestCreate(BaseModel):
     expected_price: float | None = None
 
 
+class VendorAcceptRequest(BaseModel):
+    quantity_kg: float
+
+
 class TransportRouteRequest(BaseModel):
     pickup_location: dict
     delivery_location: dict
@@ -100,7 +104,7 @@ async def list_opportunities(current_farmer: dict = Depends(get_current_farmer))
         raise HTTPException(status_code=403, detail="Not a registered vendor")
 
     resp = sb.table("demand_requests").select("*") \
-        .in_("status", ["open", "matched"]) \
+        .eq("status", "open") \
         .order("created_at", desc=True).execute()
 
     requests = resp.data or []
@@ -114,7 +118,11 @@ async def list_opportunities(current_farmer: dict = Depends(get_current_farmer))
         .execute()
     bid_ids = {b["demand_request_id"] for b in bids.data or []}
 
-    return [r for r in requests if r["id"] not in bid_ids]
+    return [
+        r for r in requests
+        if r["id"] not in bid_ids
+        and (r.get("remaining_quantity_kg") is None or float(r.get("remaining_quantity_kg") or 0) > 0)
+    ]
 
 
 @router.post("/opportunities/{request_id}/route")
@@ -175,6 +183,7 @@ async def recommend_opportunity_route(
 @router.post("/opportunities/{request_id}/accept")
 async def accept_opportunity(
     request_id: str,
+    req: VendorAcceptRequest,
     current_farmer: dict = Depends(get_current_farmer),
 ):
     sb = get_supabase()
@@ -186,6 +195,13 @@ async def accept_opportunity(
     dr = sb.table("demand_requests").select("*").eq("id", request_id).execute()
     if not dr.data:
         raise HTTPException(status_code=404, detail="Crop not found")
+
+    quantity = float(req.quantity_kg)
+    if quantity <= 0:
+        raise HTTPException(status_code=422, detail="quantity_kg must be greater than zero")
+    available = dr.data[0].get("remaining_quantity_kg")
+    if available is not None and quantity > float(available):
+        raise HTTPException(status_code=409, detail=f"Only {available} kg remains available")
 
     existing = sb.table("rescue_matches").select("id, status") \
         .eq("demand_request_id", request_id) \
@@ -201,22 +217,30 @@ async def accept_opportunity(
         "distance_km": None,
         "shelf_life_compatible": True,
     }
-    ins = sb.table("rescue_matches").insert({
-        "demand_request_id": request_id,
-        "matched_buyer_info": buyer_info,
-        "status": "proposed",
-    }).execute()
+    try:
+        reserved = sb.rpc("reserve_marketplace_quantity", {
+            "p_demand_request_id": request_id,
+            "p_vendor_id": current_farmer["id"],
+            "p_quantity_kg": quantity,
+            "p_buyer_info": buyer_info,
+        }).execute()
+    except Exception as exc:
+        raise HTTPException(status_code=409, detail="Unable to reserve that quantity") from exc
 
-    sb.table("demand_requests").update({"status": "matched"}) \
-        .eq("id", request_id).execute()
+    reservation = reserved.data if isinstance(reserved.data, dict) else {}
 
     await create_notification(
         sb,
         dr.data[0]["farmer_id"],
         "match",
         "New buyer match",
-        f"{buyer_info['buyer_name']} is interested in your {dr.data[0]['crop_name']}",
+        f"{buyer_info['buyer_name']} wants {quantity:g} kg of your {dr.data[0]['crop_name']}",
         request_id,
     )
 
-    return {"status": "proposed", "match_id": ins.data[0]["id"]}
+    return {
+        "status": "proposed",
+        "match_id": reservation.get("match_id"),
+        "quantity_kg": quantity,
+        "remaining_quantity_kg": reservation.get("remaining_quantity_kg"),
+    }

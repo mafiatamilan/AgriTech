@@ -38,6 +38,10 @@ async def crop_match(
     # Try to get shelf life from inventory_statuses (actual agent data)
     shelf_life_days = req.shelf_life_days
     shelf_life_expiry = None
+    quantity_kg = req.quantity_kg
+
+    if quantity_kg is not None and quantity_kg <= 0:
+        raise HTTPException(status_code=422, detail="quantity_kg must be greater than zero")
 
     inv_resp = sb.table("inventory").select("id") \
         .eq("farmer_id", current_farmer["id"]) \
@@ -47,6 +51,9 @@ async def crop_match(
 
     if inv_resp.data:
         inv_id = inv_resp.data[0]["id"]
+        inventory_row = sb.table("inventory").select("quantity").eq("id", inv_id).limit(1).execute()
+        if quantity_kg is None and inventory_row.data:
+            quantity_kg = inventory_row.data[0].get("quantity")
         status_resp = sb.table("inventory_statuses").select("*") \
             .eq("inventory_id", inv_id) \
             .order("created_at", desc=True) \
@@ -69,6 +76,9 @@ async def crop_match(
         "shelf_life_days": shelf_life_days,
         "harvested_date": req.harvested_date,
         "expected_price": req.expected_price,
+        "quantity_kg": quantity_kg,
+        "remaining_quantity_kg": quantity_kg,
+        "sold_quantity_kg": 0,
         "shelf_life_expiry": shelf_life_expiry.isoformat() if shelf_life_expiry else None,
     }
     resp = sb.table("demand_requests").insert(row).execute()
@@ -189,14 +199,19 @@ async def confirm_match(
         "confirmed_at": datetime.utcnow().isoformat(),
     }).eq("id", match_id).execute()
 
-    # Mark parent request as matched
-    sb.table("demand_requests").update({"status": "matched"}) \
-        .eq("id", match["demand_request_id"]).execute()
+    # A partial sale leaves the parent request open for the remaining stock.
+    demand_state = sb.table("demand_requests").select("remaining_quantity_kg") \
+        .eq("id", match["demand_request_id"]).limit(1).execute()
+    remaining = demand_state.data[0].get("remaining_quantity_kg") if demand_state.data else 0
+    sb.table("demand_requests").update({
+        "status": "matched" if remaining is not None and float(remaining) <= 0 else "open",
+    }).eq("id", match["demand_request_id"]).execute()
 
-    # Reject/expire other matches for same request
-    sb.table("rescue_matches").update({"status": "rejected"}) \
-        .eq("demand_request_id", match["demand_request_id"]) \
-        .neq("id", match_id).execute()
+    # Only close competing matches when the entire listing has been sold.
+    if remaining is not None and float(remaining) <= 0:
+        sb.table("rescue_matches").update({"status": "rejected"}) \
+            .eq("demand_request_id", match["demand_request_id"]) \
+            .neq("id", match_id).execute()
 
     # Notify counter-party if buyer info has an identifier
     buyer_info = match.get("matched_buyer_info", {})

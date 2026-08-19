@@ -9,6 +9,9 @@ class DemandRequest(BaseModel):
     shelf_life_days: int | None = None
     harvested_date: str
     expected_price: float | None = None
+    quantity_kg: float | None = None
+    remaining_quantity_kg: float | None = None
+    sold_quantity_kg: float = 0
     status: str = "open"
     shelf_life_expiry: datetime | None = None
     created_at: datetime | None = None
@@ -16,6 +19,7 @@ class DemandRequest(BaseModel):
 
 class DemandRequestCreate(BaseModel):
     crop_name: str
+    quantity_kg: float | None = None
     shelf_life_days: int | None = None
     harvested_date: str
     expected_price: float | None = None

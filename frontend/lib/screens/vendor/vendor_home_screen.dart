@@ -35,6 +35,7 @@ class _VendorHomeScreenState extends ConsumerState<VendorHomeScreen> {
       await ref.read(backendProvider).vendorSignup();
       setState(() => _signedUp = true);
       ref.invalidate(vendorRequestsProvider);
+      ref.invalidate(vendorOpportunitiesProvider);
     } on Exception catch (e) {
       if (mounted) showError(context, e);
     } finally {
@@ -66,10 +67,41 @@ class _VendorHomeScreenState extends ConsumerState<VendorHomeScreen> {
     }
   }
 
-  Future<void> _accept(String requestId) async {
+  Future<void> _accept(DemandRequest opportunity) async {
     final l10n = AppLocalizations.of(context);
+    final available = opportunity.remainingQuantityKg ?? opportunity.quantityKg;
+    final controller = TextEditingController(
+      text: available == null ? '' : available.toStringAsFixed(2),
+    );
+    final quantity = await showDialog<double>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: Text('How much ${opportunity.cropName} do you need?'),
+        content: TextField(
+          controller: controller,
+          autofocus: true,
+          keyboardType: const TextInputType.numberWithOptions(decimal: true),
+          decoration: const InputDecoration(labelText: 'Quantity (kg)'),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: Text(l10n.commonCancel),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(
+              context,
+              double.tryParse(controller.text.trim()),
+            ),
+            child: Text(l10n.vendorAccept),
+          ),
+        ],
+      ),
+    );
+    controller.dispose();
+    if (quantity == null || quantity <= 0) return;
     try {
-      await ref.read(backendProvider).vendorAccept(requestId);
+      await ref.read(backendProvider).vendorAccept(opportunity.id, quantity);
       ref.invalidate(vendorOpportunitiesProvider);
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -89,6 +121,7 @@ class _VendorHomeScreenState extends ConsumerState<VendorHomeScreen> {
 
     return Scaffold(
       appBar: AppBar(
+        leading: Navigator.of(context).canPop() ? const BackButton() : null,
         title: Text(l10n.appTitle),
         actions: [
           IconButton(
@@ -192,7 +225,7 @@ class _VendorHomeScreenState extends ConsumerState<VendorHomeScreen> {
                         for (final o in ops)
                           _OpportunityTile(
                             opportunity: o,
-                            onAccept: () => _accept(o.id),
+                            onAccept: () => _accept(o),
                           ),
                       ],
                     ),
@@ -275,6 +308,7 @@ class _OpportunityTile extends StatelessWidget {
         leading: const Icon(Icons.agriculture_outlined),
         title: Text(opportunity.cropName),
         subtitle: Text(
+          '${opportunity.remainingQuantityKg?.toStringAsFixed(0) ?? '—'} kg available · '
           '${money(opportunity.expectedPrice)} · '
           '${opportunity.harvestedDate != null ? fmtDate(opportunity.harvestedDate!) : '—'}',
         ),

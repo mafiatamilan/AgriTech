@@ -93,12 +93,14 @@ class Backend {
 
   Future<CropMatchResult> cropMatch({
     required String cropName,
+    double? quantityKg,
     int? shelfLifeDays,
     required String harvestedDate,
     double? expectedPrice,
   }) async {
     final json = await _api.post('/market/crop-match', body: {
       'crop_name': cropName,
+      'quantity_kg': quantityKg,
       'shelf_life_days': shelfLifeDays,
       'harvested_date': harvestedDate,
       'expected_price': expectedPrice,
@@ -253,8 +255,12 @@ class Backend {
         .toList();
   }
 
-  Future<void> vendorAccept(String requestId) =>
-      _api.post('/vendors/opportunities/$requestId/accept');
+  Future<Map<String, dynamic>> vendorAccept(
+      String requestId, double quantityKg) async {
+    final json = await _api.post('/vendors/opportunities/$requestId/accept',
+        body: {'quantity_kg': quantityKg});
+    return Map<String, dynamic>.from(json as Map);
+  }
 
   // ---- inventory ----
   Future<List<InventoryItem>> getInventory() async {
