@@ -11,11 +11,28 @@ class Backend {
   final ApiClient _api;
 
   // ---- auth ----
-  Future<OAuthExchange> exchangeOAuth(String accessToken) async {
-    final json = await _api.post('/auth/oauth/exchange', body: {
-      'access_token': accessToken,
+  Future<AuthResponse> login(String email, String password) async {
+    final json = await _api.post('/auth/login', body: {
+      'email': email,
+      'password': password,
     });
-    return OAuthExchange.fromJson(json as Map<String, dynamic>);
+    return AuthResponse.fromJson(json as Map<String, dynamic>);
+  }
+
+  Future<AuthResponse> signup(
+      String email, String password, String name, {String? phone}) async {
+    final json = await _api.post('/auth/signup', body: {
+      'email': email,
+      'password': password,
+      'name': name,
+      if (phone != null && phone.isNotEmpty) 'phone': phone,
+    });
+    return AuthResponse.fromJson(json as Map<String, dynamic>);
+  }
+
+  Future<FarmerProfile> getProfile() async {
+    final json = await _api.get('/auth/me');
+    return FarmerProfile.fromJson(json as Map<String, dynamic>);
   }
 
   // ---- farms ----

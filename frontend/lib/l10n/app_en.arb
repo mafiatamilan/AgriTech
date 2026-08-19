@@ -1,7 +1,6 @@
 {
   "@@locale": "en",
   "appTitle": "AgriTech",
-  "continueWithGoogle": "Continue with Google",
   "onboardingTitle": "Welcome",
   "onboardingSubtitle": "Tell us a bit about your farm",
   "onboardingPhone": "Phone number",

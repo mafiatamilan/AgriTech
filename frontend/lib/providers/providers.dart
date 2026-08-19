@@ -29,15 +29,14 @@ class AuthState {
 }
 
 class AuthController extends Notifier<AuthState> {
-  Future<void>? _exchangeInFlight;
-  String? _exchangingToken;
+  Future<void>? _profileLoadInFlight;
 
   @override
   AuthState build() {
     final sub = supabase.auth.onAuthStateChange.listen((data) {
       final session = data.session;
       if (session != null) {
-        _exchange(session.accessToken);
+        _loadProfile();
       } else if (state.status != AuthStatus.loading) {
         state = const AuthState(AuthStatus.needsLogin);
       }
@@ -46,45 +45,41 @@ class AuthController extends Notifier<AuthState> {
 
     final session = supabase.auth.currentSession;
     if (session != null) {
-      Future.microtask(() => _exchange(session.accessToken));
+      Future.microtask(_loadProfile);
       return const AuthState(AuthStatus.loading);
     }
     return const AuthState(AuthStatus.needsLogin);
   }
 
-  Future<void> _exchange(String token) async {
-    if (_exchangingToken == token && _exchangeInFlight != null) {
-      return _exchangeInFlight!;
+  Future<void> _loadProfile() async {
+    if (_profileLoadInFlight != null) {
+      return _profileLoadInFlight!;
     }
 
-    _exchangingToken = token;
-    final exchangeFuture = _performExchange(token);
-    _exchangeInFlight = exchangeFuture;
+    final loadFuture = _performProfileLoad();
+    _profileLoadInFlight = loadFuture;
     try {
-      await exchangeFuture;
+      await loadFuture;
     } finally {
-      if (identical(_exchangeInFlight, exchangeFuture)) {
-        _exchangeInFlight = null;
-        _exchangingToken = null;
+      if (identical(_profileLoadInFlight, loadFuture)) {
+        _profileLoadInFlight = null;
       }
     }
   }
 
-  Future<void> _performExchange(String token) async {
+  Future<void> _performProfileLoad() async {
     state = const AuthState(AuthStatus.loading);
     try {
-      final exchange = await ref.read(backendProvider).exchangeOAuth(token);
+      final profile = await ref.read(backendProvider).getProfile();
       state = AuthState(
-        exchange.isNewUser ? AuthStatus.needsOnboarding : AuthStatus.ready,
-        profile: exchange.profile,
+        profile.soilType == null || profile.areaLocality == null
+            ? AuthStatus.needsOnboarding
+            : AuthStatus.ready,
+        profile: profile,
       );
     } on ApiException catch (error) {
       state = const AuthState(AuthStatus.needsLogin);
-      // An exchange 401 means this session cannot authenticate with the
-      // backend. Clear it so token refresh/auth events do not keep retrying
-      // the same invalid token every minute.
-      if (error.isUnauthorized &&
-          supabase.auth.currentSession?.accessToken == token) {
+      if (error.isUnauthorized) {
         try {
           await supabase.auth.signOut();
         } on Exception {
@@ -97,15 +92,27 @@ class AuthController extends Notifier<AuthState> {
     }
   }
 
-  Future<void> signInWithGoogle() async {
+  Future<void> login(String email, String password) async {
+    state = const AuthState(AuthStatus.loading);
     try {
-      await supabase.auth.signInWithOAuth(
-        OAuthProvider.google,
-        redirectTo: 'io.agritech.app://login-callback',
-      );
+      final auth = await ref.read(backendProvider).login(email, password);
+      await supabase.auth.setSession(auth.refreshToken);
+      await _loadProfile();
     } on Exception {
-      // supabase fires the signed-in event on redirect completion, which
-      // drives _exchange; nothing else to do here.
+      state = const AuthState(AuthStatus.needsLogin);
+      rethrow;
+    }
+  }
+
+  Future<void> signup(String email, String password, String name) async {
+    state = const AuthState(AuthStatus.loading);
+    try {
+      final auth = await ref.read(backendProvider).signup(email, password, name);
+      await supabase.auth.setSession(auth.refreshToken);
+      await _loadProfile();
+    } on Exception {
+      state = const AuthState(AuthStatus.needsLogin);
+      rethrow;
     }
   }
 

@@ -12,9 +12,6 @@ class AppLocalizationsEn extends AppLocalizations {
   String get appTitle => 'AgriTech';
 
   @override
-  String get continueWithGoogle => 'Continue with Google';
-
-  @override
   String get onboardingTitle => 'Welcome';
 
   @override

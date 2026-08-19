@@ -100,12 +100,6 @@ abstract class AppLocalizations {
   /// **'AgriTech'**
   String get appTitle;
 
-  /// No description provided for @continueWithGoogle.
-  ///
-  /// In en, this message translates to:
-  /// **'Continue with Google'**
-  String get continueWithGoogle;
-
   /// No description provided for @onboardingTitle.
   ///
   /// In en, this message translates to:

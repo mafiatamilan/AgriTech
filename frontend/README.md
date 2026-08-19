@@ -25,29 +25,18 @@ flutter run -t lib/main_vendor.dart
 | `API_BASE_URL` | `http://localhost:8000` | Use `10.0.2.2` on the Android emulator. |
 | `SUPABASE_URL` | (none — required) | Must match the backend's Supabase project. |
 | `SUPABASE_ANON_KEY` | (none — required) | |
-| `DEEP_LINK_SCHEME` | `io.agritech.app` | Custom scheme for the OAuth callback. |
 
 `AppConfig` lives in `lib/core/config.dart`.
 
-## Auth (Google OAuth)
+## Auth (JWT)
 
-The app starts the Supabase Google OAuth flow
-(`Supabase.initialize(publishableKey: ...)`, `signInWithOAuth` with
-`redirectTo: io.agritech.app://login-callback`), then calls the backend's
-`POST /auth/oauth/exchange` to create/load the farmer profile and mark
-onboarding complete.
+The app uses email/password authentication through the backend:
 
-Deep link already configured:
-
-- **Android** — `android/app/src/main/AndroidManifest.xml` has a VIEW
-  intent-filter for scheme `io.agritech.app`.
-- **iOS** — `ios/Runner/Info.plist` has a `CFBundleURLTypes` entry for the same
-  scheme.
-
-On iOS, also whitelist the custom scheme in
-`ios/Runner/Info.plist` under `LSApplicationQueriesSchemes` if you later need
-to detect the handler. No Google client-side configuration is needed — the
-OAuth provider is configured on the Supabase side.
+- `POST /auth/signup` creates a farmer and returns access and refresh JWTs.
+- `POST /auth/login` authenticates an existing farmer and returns access and
+  refresh JWTs.
+- The Supabase session stores the returned refresh token, while the access JWT
+  is attached to protected backend requests.
 
 ## Offline behavior
 

@@ -1,6 +1,5 @@
 import 'package:supabase_flutter/supabase_flutter.dart';
 
-import '../core/config.dart';
 import '../core/supabase.dart';
 
 /// Initializes Supabase (auth + realtime + storage) and exposes the
@@ -16,15 +15,6 @@ Future<void> initSupabase() async {
 }
 
 class AuthService {
-  /// Starts Google OAuth. Returns once the session is available
-  /// (via the deep-link callback handled by supabase_flutter).
-  Future<void> signInWithGoogle() async {
-    await supabase.auth.signInWithOAuth(
-      OAuthProvider.google,
-      redirectTo: AppConfig.oauthRedirectUri,
-    );
-  }
-
   Future<void> signOut() => supabase.auth.signOut();
 
   User? get user => supabase.auth.currentUser;

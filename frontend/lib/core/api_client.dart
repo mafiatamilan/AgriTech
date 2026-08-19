@@ -98,9 +98,10 @@ class ApiClient {
     required String path,
   }) async {
     var response = await call().timeout(longTimeout ? _longTimeout : _timeout);
-    // OAuth exchange is the login/bootstrap request. Refreshing here emits
-    // another auth-state event, which starts another exchange and can loop.
-    if (response.statusCode == 401 && path != '/auth/oauth/exchange') {
+    // Login and signup are bootstrap requests; refreshing on their 401s
+    // would retry invalid credentials with the existing session.
+    final isPublicAuth = path == '/auth/login' || path == '/auth/signup';
+    if (response.statusCode == 401 && !isPublicAuth) {
       // Expired Supabase session — refresh once and retry.
       try {
         await supabase.auth.refreshSession();

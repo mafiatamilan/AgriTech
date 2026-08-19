@@ -84,56 +84,6 @@ def get_mock_supabase_admin():
 
 
 # ============================================================
-# OAuth exchange tests
-# ============================================================
-
-@pytest.mark.asyncio
-async def test_oauth_exchange_existing_user():
-    mock_sb = get_mock_supabase()
-    mock_sb._tables["farmers"] = MockTable([{
-        "id": "user-123",
-        "name": "Test Farmer",
-        "email": "test@example.com",
-        "preferred_language": "en",
-        "soil_type": None,
-        "area_locality": None,
-    }])
-
-    def _get_sb():
-        return mock_sb
-
-    with patch("app.routers.auth.get_supabase", _get_sb):
-        from app.routers.auth import oauth_exchange, OAuthExchangeRequest
-
-        with patch("app.routers.auth.decode_jwt", return_value={"sub": "user-123"}):
-            result = await oauth_exchange(OAuthExchangeRequest(access_token="fake-token"))
-        assert result.is_new_user is False
-        assert result.profile.id == "user-123"
-
-
-@pytest.mark.asyncio
-async def test_oauth_exchange_new_user():
-    mock_sb = get_mock_supabase()
-    mock_sb._tables["farmers"] = MockTable([])  # no existing farmer
-
-    mock_user = MagicMock()
-    mock_user.user_metadata = {"full_name": "New User"}
-    mock_user.email = "new@example.com"
-    mock_sb.auth.get_user.return_value = MagicMock(user=mock_user)
-
-    def _get_sb():
-        return mock_sb
-
-    with patch("app.routers.auth.get_supabase", _get_sb):
-        from app.routers.auth import oauth_exchange, OAuthExchangeRequest
-
-        with patch("app.routers.auth.decode_jwt", return_value={"sub": "new-user-456"}):
-            result = await oauth_exchange(OAuthExchangeRequest(access_token="fake-token"))
-        assert result.is_new_user is True
-        assert result.profile.name == "New User"
-
-
-# ============================================================
 # Device pairing tests
 # ============================================================
 

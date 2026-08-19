@@ -24,11 +24,4 @@ class AppConfig {
         'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImVub2R1d21zanZwb2RibnJueG9pIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODY4OTU3MDUsImV4cCI6MjEwMjQ3MTcwNX0.8TvXG6LmlaqVdZpr8p64dxrczBlMg1gdgtM7zaNXyF0',
   );
 
-  static const deepLinkScheme = String.fromEnvironment(
-    'DEEP_LINK_SCHEME',
-    defaultValue: 'io.agritech.app',
-  );
-
-  /// The OAuth redirect URI used with Google sign-in.
-  static const oauthRedirectUri = 'io.agritech.app://login-callback';
 }
