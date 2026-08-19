@@ -40,7 +40,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
 
     try {
       final auth = ref.read(authProvider.notifier);
-      ref.read(accountTypeProvider.notifier).state = _accountType;
+      ref.read(accountTypeProvider.notifier).setType(_accountType);
       if (_isSignup) {
         if (_accountType == AccountType.vendor) {
           await auth.signupVendor(

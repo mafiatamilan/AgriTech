@@ -23,9 +23,17 @@ enum AuthStatus { loading, needsLogin, needsOnboarding, ready }
 
 enum AccountType { farmer, vendor }
 
-final accountTypeProvider = StateProvider<AccountType>(
-  (ref) => AccountType.farmer,
-);
+class AccountTypeController extends Notifier<AccountType> {
+  @override
+  AccountType build() => AccountType.farmer;
+
+  void setType(AccountType type) => state = type;
+}
+
+final accountTypeProvider =
+    NotifierProvider<AccountTypeController, AccountType>(
+      AccountTypeController.new,
+    );
 
 class AuthState {
   const AuthState(this.status, {this.profile});
