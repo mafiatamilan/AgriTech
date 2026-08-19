@@ -11,6 +11,11 @@ class Settings(BaseSettings):
     AGENT_WEBHOOK_SECRET: str = ""
     AGENT_DISPATCH_URL: str = "http://localhost:8000/webhooks/agent-result"
     HARDWARE_COMMAND_SECRET: str = ""
+    USB_RELAY_ENABLED: bool = True
+    USB_RELAY_PORT: str = "/dev/ttyUSB1"
+    USB_RELAY_BAUD_RATE: int = 115200
+    LORA_GATEWAY_STATUS_URL: str = "http://10.33.12.68/status"
+    LORA_GATEWAY_TIMEOUT_SECONDS: float = 0.6
     WEATHER_API_KEY: str = ""
     WEATHER_API_BASE_URL: str = ""
     LLM_API_KEY: str = ""

@@ -7,6 +7,8 @@ from app.core.config import get_settings
 from app.db.supabase_client import get_supabase, get_supabase_admin
 from app.services.irrigation_service import IrrigationService
 from app.services.hardware_service import queue_hardware_command
+from app.services.lora_gateway_service import get_lora_gateway_status
+from app.services.usb_relay_service import dispatch_usb_relay
 
 settings = get_settings()
 router = APIRouter(prefix="/motor", tags=["motor"])
@@ -38,15 +40,23 @@ async def motor_status(
         .eq("farm_id", farm_id).limit(1).execute()
 
     device_row = device.data[0] if device.data else None
+    lora_gateway = await get_lora_gateway_status()
+    gateway_rssi = lora_gateway.get("last_ack_rssi")
+    signal_strength = (
+        int(gateway_rssi)
+        if isinstance(gateway_rssi, int | float)
+        else device_row["last_signal_strength"] if device_row else None
+    )
 
     return {
         "last_watered": last.data[0] if last.data else None,
         "next_watering": next_event.data[0] if next_event.data else None,
         "current_status": running.data[0] if running.data else None,
         "moisture_readings": list(reversed(readings.data)),
-        "signal_strength": device_row["last_signal_strength"] if device_row else None,
+        "signal_strength": signal_strength,
         "motor_relay_state": (device_row["motor_relay_state"] == "on") if device_row else False,
         "device": device_row,
+        "lora_gateway": lora_gateway,
     }
 
 
@@ -57,6 +67,8 @@ async def stop_current(farm_id: str = Query(...), current_farmer: dict = Depends
     result = await svc.stop_current(farm_id)
     if result.get("status") == "stopped":
         queue_hardware_command(sb, farm_id, "off")
+        usb_result = await dispatch_usb_relay("off")
+        result["usb_relay"] = usb_result.__dict__
     return result
 
 
@@ -74,6 +86,8 @@ async def manual_on(farm_id: str = Query(...), current_farmer: dict = Depends(ge
     result = await svc.manual_on(farm_id)
     if result.get("status") == "running":
         queue_hardware_command(sb, farm_id, "on")
+        usb_result = await dispatch_usb_relay("on")
+        result["usb_relay"] = usb_result.__dict__
     return result
 
 
@@ -81,7 +95,8 @@ async def manual_on(farm_id: str = Query(...), current_farmer: dict = Depends(ge
 async def dispatch_command(farm_id: str, action: str = Query(..., pattern="^(on|off)$")):
     sb = get_supabase_admin()
     queue_hardware_command(sb, farm_id, action)
-    return {"dispatched": True, "action": action}
+    usb_result = await dispatch_usb_relay(action)
+    return {"dispatched": True, "action": action, "usb_relay": usb_result.__dict__}
 
 
 @router.get("/pending-command")
@@ -101,7 +116,7 @@ async def pending_command(device_uid: str = Query(...), request: Request = None)
 
     cmd = sb.table("mqtt_commands").select("*") \
         .eq("farm_device_id", device.data[0]["id"]) \
-        .in_("publish_status", ["pending", "sent"]) \
+        .eq("publish_status", "pending") \
         .order("issued_at", desc=False).limit(1).execute()
 
     if not cmd.data:

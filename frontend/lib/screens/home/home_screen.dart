@@ -242,9 +242,21 @@ class _SignalCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context);
     final result = provider.value;
-    final signal = result?.data.signalStrength;
-    final relay = result?.data.motorRelayState;
-    final isRunning = result?.data.currentStatus != null;
+    final status = result?.data;
+    final gateway = status?.loraGateway;
+    final signal = gateway?.lastAckRssi ?? status?.signalStrength;
+    final relay = status?.motorRelayState;
+    final isRunning = status?.currentStatus != null;
+    final deviceUid =
+        gateway?.deviceUid ?? status?.device?['device_uid']?.toString();
+    final lastCommand = gateway?.lastCommand;
+    final lastAck = gateway?.lastAck;
+    final commandParts = [
+      if (lastCommand != null && lastCommand.isNotEmpty) 'Last: $lastCommand',
+      if (lastAck != null && lastAck.isNotEmpty && lastAck != 'none')
+        'ACK received',
+      if (lastAck == 'none') 'No ACK yet',
+    ];
     return Card(
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -252,15 +264,45 @@ class _SignalCard extends StatelessWidget {
           if (result?.fromCache ?? false)
             StaleBanner(savedAt: result!.savedAt!),
           ListTile(
-            leading: const Icon(Icons.sensors),
+            leading: Icon(
+              gateway?.reachable == true ? Icons.sensors : Icons.sensors_off,
+            ),
+            title: Text('LoRa gateway'),
+            subtitle: Text(
+              gateway?.reachable == true
+                  ? [
+                      if (deviceUid != null && deviceUid.isNotEmpty) deviceUid,
+                      if (gateway?.ip != null && gateway!.ip!.isNotEmpty)
+                        gateway.ip!,
+                    ].join(' · ')
+                  : l10n.homeNoSignal,
+              style: TextStyle(
+                color: gateway?.reachable == true ? Colors.green : Colors.grey,
+              ),
+            ),
+          ),
+          const Divider(height: 1),
+          ListTile(
+            leading: const Icon(Icons.network_check),
             title: Text(l10n.homeSignalStrength),
             subtitle: Text(
               signal == null
                   ? l10n.homeNoSignal
-                  : '${signal < 0 ? signal : -signal} dBm',
+                  : '${signal < 0 ? signal : -signal} dBm'
+                        '${gateway?.lastAckSnr == null ? '' : ' · SNR ${gateway!.lastAckSnr!.toStringAsFixed(1)}'}',
               style: TextStyle(
                 color: signal == null ? Colors.grey : _signalColor(signal),
               ),
+            ),
+          ),
+          const Divider(height: 1),
+          ListTile(
+            leading: const Icon(Icons.settings_input_antenna),
+            title: const Text('LoRa command'),
+            subtitle: Text(
+              commandParts.isEmpty
+                  ? l10n.homeNoSignal
+                  : commandParts.join(' · '),
             ),
           ),
           const Divider(height: 1),
