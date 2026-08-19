@@ -89,6 +89,10 @@ async def create_vendor_request(
 @router.get("/requests")
 async def list_vendor_requests(current_farmer: dict = Depends(get_current_farmer)):
     sb = get_supabase()
+    vendor = sb.table("vendors").select("id").eq("id", current_farmer["id"]).execute()
+    if not vendor.data:
+        raise HTTPException(status_code=403, detail="Not a registered vendor")
+
     resp = sb.table("vendor_requests").select("*") \
         .eq("vendor_id", current_farmer["id"]) \
         .order("created_at", desc=True).execute()
