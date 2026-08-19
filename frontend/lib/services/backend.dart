@@ -273,7 +273,24 @@ class Backend {
       _api.patch('/notifications/$id/read');
 
   // ---- vendors ----
-  Future<void> vendorSignup() => _api.post('/vendors/signup');
+  Future<void> vendorSignup({
+    String? name,
+    String? phone,
+    String? email,
+    String? businessName,
+    String? address,
+  }) => _api.post(
+    '/vendors/signup',
+    body: {
+      if (name != null && name.trim().isNotEmpty) 'name': name.trim(),
+      if (phone != null && phone.trim().isNotEmpty) 'phone': phone.trim(),
+      if (email != null && email.trim().isNotEmpty) 'email': email.trim(),
+      if (businessName != null && businessName.trim().isNotEmpty)
+        'business_name': businessName.trim(),
+      if (address != null && address.trim().isNotEmpty)
+        'address': address.trim(),
+    },
+  );
 
   Future<List<VendorRequest>> vendorGetRequests() async {
     final json = await _api.get('/vendors/requests') as List;

@@ -47,6 +47,7 @@ class VendorSignupRequest(BaseModel):
     phone: str | None = None
     email: str | None = None
     business_name: str | None = None
+    address: str | None = None
 
 
 class VendorRequestCreate(BaseModel):
@@ -88,6 +89,7 @@ async def vendor_signup(req: VendorSignupRequest | None = None, current_farmer: 
         "business_name": req.business_name or name,
         "contact_email": req.email,
         "contact_phone": req.phone,
+        "address": req.address,
     }).execute()
 
     return {"status": "created", "vendor_id": current_farmer["id"]}

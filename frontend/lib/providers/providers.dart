@@ -153,14 +153,26 @@ class AuthController extends Notifier<AuthState> {
     }
   }
 
-  Future<void> signupVendor(String email, String password, String name) async {
+  Future<void> signupVendor(
+    String email,
+    String password,
+    String name, {
+    String? phone,
+    String? address,
+  }) async {
     state = const AuthState(AuthStatus.loading);
     try {
       final backend = ref.read(backendProvider);
       final auth = await backend.signup(email, password, name);
       await supabase.auth.setSession(auth.refreshToken);
       try {
-        await backend.vendorSignup();
+        await backend.vendorSignup(
+          name: name,
+          businessName: name,
+          email: email,
+          phone: phone,
+          address: address,
+        );
       } on ApiException catch (error) {
         if (error.statusCode != 409) rethrow;
       }

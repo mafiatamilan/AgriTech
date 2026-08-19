@@ -15,6 +15,10 @@ class VendorHomeScreen extends ConsumerStatefulWidget {
 }
 
 class _VendorHomeScreenState extends ConsumerState<VendorHomeScreen> {
+  final _businessNameController = TextEditingController();
+  final _vendorPhoneController = TextEditingController();
+  final _vendorEmailController = TextEditingController();
+  final _vendorAddressController = TextEditingController();
   final _cropController = TextEditingController();
   final _qtyController = TextEditingController();
   final _priceController = TextEditingController();
@@ -23,6 +27,10 @@ class _VendorHomeScreenState extends ConsumerState<VendorHomeScreen> {
 
   @override
   void dispose() {
+    _businessNameController.dispose();
+    _vendorPhoneController.dispose();
+    _vendorEmailController.dispose();
+    _vendorAddressController.dispose();
     _cropController.dispose();
     _qtyController.dispose();
     _priceController.dispose();
@@ -30,9 +38,30 @@ class _VendorHomeScreenState extends ConsumerState<VendorHomeScreen> {
   }
 
   Future<void> _signup() async {
+    final businessName = _businessNameController.text.trim();
+    final phone = _vendorPhoneController.text.trim();
+    final email = _vendorEmailController.text.trim();
+    final address = _vendorAddressController.text.trim();
+    if (businessName.isEmpty ||
+        phone.isEmpty ||
+        email.isEmpty ||
+        address.isEmpty) {
+      if (mounted) {
+        showError(context, 'Enter vendor name, phone, email, and address');
+      }
+      return;
+    }
     setState(() => _submitting = true);
     try {
-      await ref.read(backendProvider).vendorSignup();
+      await ref
+          .read(backendProvider)
+          .vendorSignup(
+            name: businessName,
+            businessName: businessName,
+            phone: phone,
+            email: email,
+            address: address,
+          );
       setState(() => _signedUp = true);
       ref.invalidate(vendorRequestsProvider);
       ref.invalidate(vendorOpportunitiesProvider);
@@ -140,7 +169,14 @@ class _VendorHomeScreenState extends ConsumerState<VendorHomeScreen> {
         child: requests.when(
           loading: () => const Center(child: CircularProgressIndicator()),
           error: (e, _) => !_signedUp
-              ? _SignupView(submitting: _submitting, onSignup: _signup)
+              ? _SignupView(
+                  businessNameController: _businessNameController,
+                  phoneController: _vendorPhoneController,
+                  emailController: _vendorEmailController,
+                  addressController: _vendorAddressController,
+                  submitting: _submitting,
+                  onSignup: _signup,
+                )
               : ErrorView(
                   onRetry: () => ref.invalidate(vendorRequestsProvider),
                 ),
@@ -290,8 +326,19 @@ class _VendorOpportunitiesList extends ConsumerWidget {
 }
 
 class _SignupView extends StatelessWidget {
-  const _SignupView({required this.submitting, required this.onSignup});
+  const _SignupView({
+    required this.businessNameController,
+    required this.phoneController,
+    required this.emailController,
+    required this.addressController,
+    required this.submitting,
+    required this.onSignup,
+  });
 
+  final TextEditingController businessNameController;
+  final TextEditingController phoneController;
+  final TextEditingController emailController;
+  final TextEditingController addressController;
   final bool submitting;
   final VoidCallback onSignup;
 
@@ -309,6 +356,46 @@ class _SignupView extends StatelessWidget {
             Text(
               l10n.vendorSignupTitle,
               style: Theme.of(context).textTheme.headlineSmall,
+            ),
+            const SizedBox(height: 16),
+            TextField(
+              controller: businessNameController,
+              textInputAction: TextInputAction.next,
+              decoration: const InputDecoration(
+                labelText: 'Vendor name',
+                isDense: true,
+              ),
+            ),
+            const SizedBox(height: 12),
+            TextField(
+              controller: phoneController,
+              keyboardType: TextInputType.phone,
+              textInputAction: TextInputAction.next,
+              decoration: const InputDecoration(
+                labelText: 'Phone number',
+                isDense: true,
+              ),
+            ),
+            const SizedBox(height: 12),
+            TextField(
+              controller: emailController,
+              keyboardType: TextInputType.emailAddress,
+              textInputAction: TextInputAction.next,
+              decoration: const InputDecoration(
+                labelText: 'Email address',
+                isDense: true,
+              ),
+            ),
+            const SizedBox(height: 12),
+            TextField(
+              controller: addressController,
+              minLines: 2,
+              maxLines: 3,
+              textInputAction: TextInputAction.done,
+              decoration: const InputDecoration(
+                labelText: 'Address',
+                isDense: true,
+              ),
             ),
             const SizedBox(height: 24),
             FilledButton(

@@ -17,6 +17,8 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
   final _email = TextEditingController();
   final _password = TextEditingController();
   final _name = TextEditingController();
+  final _phone = TextEditingController();
+  final _address = TextEditingController();
   final _formKey = GlobalKey<FormState>();
   bool _isSignup = false;
   bool _submitting = false;
@@ -27,6 +29,8 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
     _email.dispose();
     _password.dispose();
     _name.dispose();
+    _phone.dispose();
+    _address.dispose();
     super.dispose();
   }
 
@@ -47,6 +51,8 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
             _email.text.trim(),
             _password.text,
             _name.text.trim(),
+            phone: _phone.text.trim(),
+            address: _address.text.trim(),
           );
         } else {
           await auth.signup(
@@ -108,7 +114,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                               .read(accountTypeProvider.notifier)
                               .setType(selection.first);
                           setState(() {
-                          _error = null;
+                            _error = null;
                           });
                         },
                 ),
@@ -117,9 +123,15 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                   TextFormField(
                     controller: _name,
                     textInputAction: TextInputAction.next,
-                    decoration: const InputDecoration(labelText: 'Name'),
+                    decoration: InputDecoration(
+                      labelText: accountType == AccountType.vendor
+                          ? 'Vendor name'
+                          : 'Name',
+                    ),
                     validator: (value) => value == null || value.trim().isEmpty
-                        ? 'Enter your name'
+                        ? accountType == AccountType.vendor
+                              ? 'Enter vendor name'
+                              : 'Enter your name'
                         : null,
                   ),
                   const SizedBox(height: 12),
@@ -137,12 +149,46 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                 TextFormField(
                   controller: _password,
                   obscureText: true,
-                  onFieldSubmitted: (_) => _submit(),
+                  textInputAction:
+                      _isSignup && accountType == AccountType.vendor
+                      ? TextInputAction.next
+                      : TextInputAction.done,
+                  onFieldSubmitted: (_) {
+                    if (!_isSignup || accountType != AccountType.vendor) {
+                      _submit();
+                    }
+                  },
                   decoration: const InputDecoration(labelText: 'Password'),
                   validator: (value) => value == null || value.length < 6
                       ? 'Password must be at least 6 characters'
                       : null,
                 ),
+                if (_isSignup && accountType == AccountType.vendor) ...[
+                  const SizedBox(height: 12),
+                  TextFormField(
+                    controller: _phone,
+                    keyboardType: TextInputType.phone,
+                    textInputAction: TextInputAction.next,
+                    decoration: const InputDecoration(
+                      labelText: 'Phone number',
+                    ),
+                    validator: (value) => value == null || value.trim().isEmpty
+                        ? 'Enter phone number'
+                        : null,
+                  ),
+                  const SizedBox(height: 12),
+                  TextFormField(
+                    controller: _address,
+                    minLines: 2,
+                    maxLines: 3,
+                    textInputAction: TextInputAction.done,
+                    onFieldSubmitted: (_) => _submit(),
+                    decoration: const InputDecoration(labelText: 'Address'),
+                    validator: (value) => value == null || value.trim().isEmpty
+                        ? 'Enter address'
+                        : null,
+                  ),
+                ],
                 if (_error != null) ...[
                   const SizedBox(height: 12),
                   Text(_error!, style: TextStyle(color: Colors.red.shade700)),
