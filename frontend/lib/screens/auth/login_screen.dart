@@ -18,7 +18,6 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
   final _password = TextEditingController();
   final _name = TextEditingController();
   final _formKey = GlobalKey<FormState>();
-  AccountType _accountType = AccountType.farmer;
   bool _isSignup = false;
   bool _submitting = false;
   String? _error;
@@ -40,9 +39,10 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
 
     try {
       final auth = ref.read(authProvider.notifier);
-      ref.read(accountTypeProvider.notifier).setType(_accountType);
+      final accountType = ref.read(accountTypeProvider);
+      await ref.read(accountTypeProvider.notifier).setType(accountType);
       if (_isSignup) {
-        if (_accountType == AccountType.vendor) {
+        if (accountType == AccountType.vendor) {
           await auth.signupVendor(
             _email.text.trim(),
             _password.text,
@@ -70,6 +70,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
   @override
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context);
+    final accountType = ref.watch(accountTypeProvider);
     return Scaffold(
       body: Center(
         child: SingleChildScrollView(
@@ -99,13 +100,17 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                       label: Text('Vendor'),
                     ),
                   ],
-                  selected: {_accountType},
+                  selected: {accountType},
                   onSelectionChanged: _submitting
                       ? null
-                      : (selection) => setState(() {
-                          _accountType = selection.first;
+                      : (selection) {
+                          ref
+                              .read(accountTypeProvider.notifier)
+                              .setType(selection.first);
+                          setState(() {
                           _error = null;
-                        }),
+                          });
+                        },
                 ),
                 const SizedBox(height: 20),
                 if (_isSignup) ...[
@@ -155,8 +160,8 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                           )
                         : Text(
                             _isSignup
-                                ? 'Sign up as ${_accountType.name}'
-                                : 'Log in as ${_accountType.name}',
+                                ? 'Sign up as ${accountType.name}'
+                                : 'Log in as ${accountType.name}',
                           ),
                   ),
                 ),

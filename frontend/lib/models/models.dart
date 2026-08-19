@@ -5,7 +5,32 @@ DateTime? _date(dynamic v) {
   return DateTime.tryParse(v.toString())?.toLocal();
 }
 
-double? _num(dynamic v) => v == null ? null : (v as num).toDouble();
+double? _num(dynamic v) {
+  if (v == null) return null;
+  if (v is num) return v.toDouble();
+  return double.tryParse(v.toString());
+}
+
+int? _int(dynamic v) {
+  if (v == null) return null;
+  if (v is int) return v;
+  if (v is num) return v.toInt();
+  return int.tryParse(v.toString());
+}
+
+Map<String, dynamic>? _map(dynamic v) {
+  if (v is Map<String, dynamic>) return v;
+  if (v is Map) return Map<String, dynamic>.from(v);
+  if (v is String) {
+    try {
+      final decoded = jsonDecode(v);
+      return decoded is Map ? Map<String, dynamic>.from(decoded) : null;
+    } on FormatException {
+      return null;
+    }
+  }
+  return null;
+}
 
 class FarmerProfile {
   FarmerProfile({
@@ -123,7 +148,7 @@ class IrrigationEvent {
         scheduledTime: _date(json['scheduled_time']),
         startedAt: _date(json['started_at']),
         stoppedAt: _date(json['stopped_at']),
-        durationSeconds: json['duration_seconds'] as int?,
+        durationSeconds: _int(json['duration_seconds']),
       );
 
   final String status;
@@ -281,7 +306,7 @@ class DemandRequest {
   factory DemandRequest.fromJson(Map<String, dynamic> json) => DemandRequest(
         id: json['id'] as String,
         cropName: json['crop_name'] as String? ?? '',
-        shelfLifeDays: json['shelf_life_days'] as int?,
+        shelfLifeDays: _int(json['shelf_life_days']),
         harvestedDate: _date(json['harvested_date']),
         expectedPrice: _num(json['expected_price']),
         quantityKg: _num(json['quantity_kg']),
@@ -334,12 +359,7 @@ class RescueMatch {
         createdAt: _date(json['created_at']),
         buyerInfo: json['matched_buyer_info'] == null
             ? null
-            : MarketMatch.fromJson(
-                json['matched_buyer_info'] is String
-                    ? jsonDecode(json['matched_buyer_info'] as String)
-                        as Map<String, dynamic>
-                    : json['matched_buyer_info'] as Map<String, dynamic>,
-              ),
+            : MarketMatch.fromJson(_map(json['matched_buyer_info']) ?? {}),
         quantityKg: _num(json['quantity_kg']),
       );
 
@@ -755,7 +775,7 @@ class InventoryStatus {
         inventoryId: json['inventory_id'] as String,
         status: json['status'] as String? ?? 'fresh',
         expiryDate: json['expiry_date'] as String?,
-        remainingDays: json['remaining_days'] as int?,
+        remainingDays: _int(json['remaining_days']),
         freshnessScore: _num(json['freshness_score']),
         createdAt: _date(json['created_at']),
       );
@@ -911,7 +931,7 @@ class IrrigationDecision {
   factory IrrigationDecision.fromJson(Map<String, dynamic> json) =>
       IrrigationDecision(
         decision: json['decision'] as String?,
-        recommendedDurationMinutes: json['recommended_duration_minutes'] as int?,
+        recommendedDurationMinutes: _int(json['recommended_duration_minutes']),
         estimatedWaterNeedMm: _num(json['estimated_water_need_mm']),
         estimatedWaterVolumeLiters: _num(json['estimated_water_volume_liters']),
         fieldAreaM2: _num(json['field_area_m2']),

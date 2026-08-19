@@ -7,6 +7,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 class CacheStore {
   static const _motorKey = 'motor_status';
   static const _recsKey = 'recommendations';
+  static const _accountTypeKey = 'account_type';
 
   Future<void> putMotorStatus(String farmId, dynamic json) =>
       _put(_motorKey, farmId, json);
@@ -17,6 +18,16 @@ class CacheStore {
       _put(_recsKey, farmId, json);
 
   Future<dynamic> getRecommendations(String farmId) => _get(_recsKey, farmId);
+
+  Future<void> putAccountType(String accountType) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString(_accountTypeKey, accountType);
+  }
+
+  Future<String?> getAccountType() async {
+    final prefs = await SharedPreferences.getInstance();
+    return prefs.getString(_accountTypeKey);
+  }
 
   Future<void> _put(String prefix, String farmId, dynamic json) async {
     final prefs = await SharedPreferences.getInstance();
@@ -39,7 +50,7 @@ class CacheStore {
       final savedAt = DateTime.tryParse(map['saved_at'] as String? ?? '');
       if (savedAt == null) return null;
       return (data: data, savedAt: savedAt);
-    } on FormatException {
+    } on Object {
       return null;
     }
   }

@@ -25,9 +25,26 @@ enum AccountType { farmer, vendor }
 
 class AccountTypeController extends Notifier<AccountType> {
   @override
-  AccountType build() => AccountType.farmer;
+  AccountType build() {
+    Future.microtask(load);
+    return AccountType.farmer;
+  }
 
-  void setType(AccountType type) => state = type;
+  Future<AccountType> load() async {
+    final stored = await ref.read(cacheProvider).getAccountType();
+    for (final type in AccountType.values) {
+      if (type.name == stored) {
+        state = type;
+        break;
+      }
+    }
+    return state;
+  }
+
+  Future<void> setType(AccountType type) async {
+    state = type;
+    await ref.read(cacheProvider).putAccountType(type.name);
+  }
 }
 
 final accountTypeProvider =
@@ -86,9 +103,11 @@ class AuthController extends Notifier<AuthState> {
   Future<void> _performProfileLoad() async {
     state = const AuthState(AuthStatus.loading);
     try {
+      final accountType = await ref.read(accountTypeProvider.notifier).load();
       final profile = await ref.read(backendProvider).getProfile();
       state = AuthState(
-        profile.soilType == null || profile.areaLocality == null
+        accountType == AccountType.farmer &&
+                (profile.soilType == null || profile.areaLocality == null)
             ? AuthStatus.needsOnboarding
             : AuthStatus.ready,
         profile: profile,
@@ -140,13 +159,12 @@ class AuthController extends Notifier<AuthState> {
       final backend = ref.read(backendProvider);
       final auth = await backend.signup(email, password, name);
       await supabase.auth.setSession(auth.refreshToken);
-      await _loadProfile();
       try {
         await backend.vendorSignup();
       } on ApiException catch (error) {
         if (error.statusCode != 409) rethrow;
       }
-      state = AuthState(AuthStatus.ready, profile: state.profile);
+      await _loadProfile();
     } on Exception {
       state = const AuthState(AuthStatus.needsLogin);
       rethrow;

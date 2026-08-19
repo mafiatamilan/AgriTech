@@ -58,6 +58,7 @@ class _AccountScreenState extends ConsumerState<AccountScreen> {
           onRetry: () => ref.invalidate(accountProvider),
         ),
         data: (info) {
+          final avatarUrl = user?.userMetadata?['avatar_url']?.toString();
           if (!_phoneSet) {
             _phoneController.text = info.profile.phone ?? '';
             _phoneSet = true;
@@ -71,10 +72,8 @@ class _AccountScreenState extends ConsumerState<AccountScreen> {
                     CircleAvatar(
                       radius: 32,
                       backgroundImage:
-                          user?.userMetadata?['avatar_url'] != null
-                              ? NetworkImage(user!.userMetadata!['avatar_url'] as String)
-                              : null,
-                      child: user?.userMetadata?['avatar_url'] == null
+                          avatarUrl == null ? null : NetworkImage(avatarUrl),
+                      child: avatarUrl == null
                           ? const Icon(Icons.person, size: 32)
                           : null,
                     ),

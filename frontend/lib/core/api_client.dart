@@ -55,6 +55,22 @@ class ApiClient {
             body: jsonEncode(body),
           ), path: path);
 
+  Future<dynamic> postForm(
+    String path, {
+    required Map<String, String> fields,
+    Map<String, String>? query,
+    bool longTimeout = false,
+  }) =>
+      _send(
+        () => _client.post(
+          _uri(path, query),
+          headers: _headers(json: false),
+          body: fields,
+        ),
+        longTimeout: longTimeout,
+        path: path,
+      );
+
   /// POST with extended timeout (for LLM calls).
   Future<dynamic> postLong(String path, {Object? body, Map<String, String>? query}) =>
       _send(() => _client.post(
@@ -72,18 +88,18 @@ class ApiClient {
     Map<String, String>? query,
     bool longTimeout = false,
   }) {
-    final request = http.MultipartRequest('POST', _uri(path, query));
-    request.headers.addAll(_headers(json: false));
-    request.fields.addAll(fields);
-    request.files.add(
-      http.MultipartFile(
-        fileField,
-        file.openRead(),
-        file.lengthSync(),
-        filename: file.uri.pathSegments.last,
-      ),
-    );
     return _send(() async {
+      final request = http.MultipartRequest('POST', _uri(path, query));
+      request.headers.addAll(_headers(json: false));
+      request.fields.addAll(fields);
+      request.files.add(
+        http.MultipartFile(
+          fileField,
+          file.openRead(),
+          file.lengthSync(),
+          filename: file.uri.pathSegments.last,
+        ),
+      );
       final streamed = await _client.send(request);
       return http.Response.fromStream(streamed);
     }, longTimeout: longTimeout, path: path);
@@ -121,9 +137,14 @@ class ApiClient {
   }
 
   dynamic _decode(http.Response response) {
-    final body = response.body.isEmpty
-        ? null
-        : jsonDecode(response.body) as dynamic;
+    dynamic body;
+    if (response.body.isNotEmpty) {
+      try {
+        body = jsonDecode(response.body) as dynamic;
+      } on FormatException {
+        body = response.body;
+      }
+    }
     if (response.statusCode >= 200 && response.statusCode < 300) {
       return body;
     }

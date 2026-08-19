@@ -101,6 +101,9 @@ class _InventoryScreenState extends ConsumerState<InventoryScreen> {
     final l10n = AppLocalizations.of(context);
     final inventory = ref.watch(inventoryProvider);
     final farm = ref.watch(farmsProvider).currentFarm;
+    final fields = farm == null
+        ? const <FieldArea>[]
+        : ref.watch(fieldsProvider(farm.id)).value ?? const <FieldArea>[];
 
     return Scaffold(
       appBar: AppBar(title: Text(l10n.navInventory)),
@@ -118,7 +121,7 @@ class _InventoryScreenState extends ConsumerState<InventoryScreen> {
               storageType: _storageType,
               qualityGrade: _qualityGrade,
               fieldId: _fieldId,
-              fields: ref.watch(fieldsProvider(farm?.id ?? '')).value ?? const [],
+              fields: fields,
               harvestedDate: _harvestedDate,
               submitting: _submitting,
               onPickDate: _pickDate,

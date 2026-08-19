@@ -113,7 +113,10 @@ class _NextSeasonCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context);
-    final crops = agent?.resultJson?['recommended_crops'] as List? ?? const [];
+    final result = agent?.resultJson;
+    final crops = result is Map
+        ? result['recommended_crops'] as List? ?? const []
+        : const [];
     return Card(
       child: Padding(
         padding: const EdgeInsets.all(16),

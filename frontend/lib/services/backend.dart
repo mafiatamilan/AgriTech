@@ -117,10 +117,10 @@ class Backend {
   }) async {
     final json = await _api.post('/market/crop-match', body: {
       'crop_name': cropName,
-      'quantity_kg': quantityKg,
-      'shelf_life_days': shelfLifeDays,
+      if (quantityKg != null) 'quantity_kg': quantityKg,
+      if (shelfLifeDays != null) 'shelf_life_days': shelfLifeDays,
       'harvested_date': harvestedDate,
-      'expected_price': expectedPrice,
+      if (expectedPrice != null) 'expected_price': expectedPrice,
     });
     return CropMatchResult.fromJson(json as Map<String, dynamic>);
   }
@@ -183,8 +183,11 @@ class Backend {
             file: image,
             longTimeout: true,
           )
-        : await _api.postLong('/chat/sessions/$sessionId/messages',
-            body: {'content': content});
+        : await _api.postForm(
+            '/chat/sessions/$sessionId/messages',
+            fields: {'content': content ?? ''},
+            longTimeout: true,
+          );
     return ChatMessage.fromJson(json as Map<String, dynamic>);
   }
 
@@ -265,8 +268,8 @@ class Backend {
   }) =>
       _api.post('/vendors/requests', body: {
         'crop_name': cropName,
-        'quantity_needed': quantityNeeded,
-        'expected_price': expectedPrice,
+        if (quantityNeeded != null) 'quantity_needed': quantityNeeded,
+        if (expectedPrice != null) 'expected_price': expectedPrice,
       });
 
   Future<List<DemandRequest>> vendorOpportunities() async {
