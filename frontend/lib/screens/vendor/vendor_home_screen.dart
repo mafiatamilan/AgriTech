@@ -245,17 +245,29 @@ class _VendorOpportunitiesList extends ConsumerWidget {
           onRetry: () => ref.invalidate(vendorOpportunitiesProvider),
         ),
       ),
-      data: (ops) => ops.isEmpty
-          ? Padding(
-              padding: const EdgeInsets.all(16),
-              child: Center(child: Text(l10n.vendorEmpty)),
+      data: (ops) {
+        final realOps = ops
+            .where(
+              (o) =>
+                  o.cropName.trim().isNotEmpty &&
+                  (o.remainingQuantityKg ?? o.quantityKg ?? 0) > 0,
             )
-          : Column(
-              children: [
-                for (final o in ops)
-                  _OpportunityTile(opportunity: o, onAccept: () => onAccept(o)),
-              ],
-            ),
+            .toList();
+        return realOps.isEmpty
+            ? Padding(
+                padding: const EdgeInsets.all(16),
+                child: Center(child: Text(l10n.vendorEmpty)),
+              )
+            : Column(
+                children: [
+                  for (final o in realOps)
+                    _OpportunityTile(
+                      opportunity: o,
+                      onAccept: () => onAccept(o),
+                    ),
+                ],
+              );
+      },
     );
   }
 }
@@ -328,17 +340,18 @@ class _OpportunityTile extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context);
+    final available = opportunity.remainingQuantityKg ?? opportunity.quantityKg;
     return Card(
       child: ListTile(
         leading: const Icon(Icons.agriculture_outlined),
         title: Text(opportunity.cropName),
         subtitle: Text(
-          '${opportunity.remainingQuantityKg?.toStringAsFixed(0) ?? '—'} kg available · '
+          '${available?.toStringAsFixed(0) ?? '—'} kg available · '
           '${money(opportunity.expectedPrice)} · '
           '${opportunity.harvestedDate != null ? fmtDate(opportunity.harvestedDate!) : '—'}',
         ),
         trailing: FilledButton.tonal(
-          onPressed: onAccept,
+          onPressed: available == null || available <= 0 ? null : onAccept,
           child: Text(l10n.vendorAccept),
         ),
       ),

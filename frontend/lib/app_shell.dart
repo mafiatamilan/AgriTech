@@ -13,7 +13,6 @@ import 'screens/performance/performance_screen.dart';
 import 'screens/recommendations/recommendations_screen.dart';
 import 'screens/settings/settings_screen.dart';
 import 'screens/upload/upload_screen.dart';
-import 'screens/vendor/vendor_home_screen.dart';
 
 /// Bottom-nav destinations (the rest live in the drawer).
 const _primaryTabs = [0, 1, 2, 3];
@@ -60,21 +59,25 @@ class _AppShellState extends ConsumerState<AppShell> {
         onDestinationSelected: _go,
         destinations: [
           NavigationDestination(
-              icon: const Icon(Icons.home_outlined),
-              selectedIcon: const Icon(Icons.home),
-              label: l10n.navHome),
+            icon: const Icon(Icons.home_outlined),
+            selectedIcon: const Icon(Icons.home),
+            label: l10n.navHome,
+          ),
           NavigationDestination(
-              icon: const Icon(Icons.water_drop_outlined),
-              selectedIcon: const Icon(Icons.water_drop),
-              label: l10n.navMotor),
+            icon: const Icon(Icons.water_drop_outlined),
+            selectedIcon: const Icon(Icons.water_drop),
+            label: l10n.navMotor,
+          ),
           NavigationDestination(
-              icon: const Icon(Icons.storefront_outlined),
-              selectedIcon: const Icon(Icons.storefront),
-              label: l10n.navMarket),
+            icon: const Icon(Icons.storefront_outlined),
+            selectedIcon: const Icon(Icons.storefront),
+            label: l10n.navMarket,
+          ),
           NavigationDestination(
-              icon: const Icon(Icons.camera_alt_outlined),
-              selectedIcon: const Icon(Icons.camera_alt),
-              label: l10n.navUpload),
+            icon: const Icon(Icons.camera_alt_outlined),
+            selectedIcon: const Icon(Icons.camera_alt),
+            label: l10n.navUpload,
+          ),
         ],
       ),
     );
@@ -97,9 +100,13 @@ class _AppShellState extends ConsumerState<AppShell> {
       child: ListView(
         children: [
           DrawerHeader(
-            decoration: BoxDecoration(color: Theme.of(context).colorScheme.primary),
-            child: Text(l10n.appTitle,
-                style: const TextStyle(color: Colors.white, fontSize: 22)),
+            decoration: BoxDecoration(
+              color: Theme.of(context).colorScheme.primary,
+            ),
+            child: Text(
+              l10n.appTitle,
+              style: const TextStyle(color: Colors.white, fontSize: 22),
+            ),
           ),
           for (final (i, label, icon) in entries)
             ListTile(
@@ -111,16 +118,6 @@ class _AppShellState extends ConsumerState<AppShell> {
                 _go(i);
               },
             ),
-          ListTile(
-            leading: const Icon(Icons.local_shipping_outlined),
-            title: const Text('Vendor marketplace'),
-            onTap: () {
-              Navigator.pop(context);
-              Navigator.of(context).push(
-                MaterialPageRoute(builder: (_) => const VendorHomeScreen()),
-              );
-            },
-          ),
           const Divider(),
           ListTile(
             leading: const Icon(Icons.logout),
