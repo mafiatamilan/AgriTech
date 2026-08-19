@@ -9,7 +9,9 @@ import '../services/cache.dart';
 
 final apiClientProvider = Provider<ApiClient>((ref) => ApiClient());
 
-final backendProvider = Provider<Backend>((ref) => Backend(ref.watch(apiClientProvider)));
+final backendProvider = Provider<Backend>(
+  (ref) => Backend(ref.watch(apiClientProvider)),
+);
 
 final cacheProvider = Provider<CacheStore>((ref) => CacheStore());
 
@@ -18,6 +20,12 @@ final cacheProvider = Provider<CacheStore>((ref) => CacheStore());
 // ---------------------------------------------------------------------------
 
 enum AuthStatus { loading, needsLogin, needsOnboarding, ready }
+
+enum AccountType { farmer, vendor }
+
+final accountTypeProvider = StateProvider<AccountType>(
+  (ref) => AccountType.farmer,
+);
 
 class AuthState {
   const AuthState(this.status, {this.profile});
@@ -107,9 +115,30 @@ class AuthController extends Notifier<AuthState> {
   Future<void> signup(String email, String password, String name) async {
     state = const AuthState(AuthStatus.loading);
     try {
-      final auth = await ref.read(backendProvider).signup(email, password, name);
+      final auth = await ref
+          .read(backendProvider)
+          .signup(email, password, name);
       await supabase.auth.setSession(auth.refreshToken);
       await _loadProfile();
+    } on Exception {
+      state = const AuthState(AuthStatus.needsLogin);
+      rethrow;
+    }
+  }
+
+  Future<void> signupVendor(String email, String password, String name) async {
+    state = const AuthState(AuthStatus.loading);
+    try {
+      final backend = ref.read(backendProvider);
+      final auth = await backend.signup(email, password, name);
+      await supabase.auth.setSession(auth.refreshToken);
+      await _loadProfile();
+      try {
+        await backend.vendorSignup();
+      } on ApiException catch (error) {
+        if (error.statusCode != 409) rethrow;
+      }
+      state = AuthState(AuthStatus.ready, profile: state.profile);
     } on Exception {
       state = const AuthState(AuthStatus.needsLogin);
       rethrow;
@@ -122,10 +151,9 @@ class AuthController extends Notifier<AuthState> {
     required String areaLocality,
   }) async {
     final backend = ref.read(backendProvider);
-    await backend.updateSettings(AppSettings(
-      soilType: soilType,
-      areaLocality: areaLocality,
-    ));
+    await backend.updateSettings(
+      AppSettings(soilType: soilType, areaLocality: areaLocality),
+    );
     await backend.updateAccount(phone: phone);
     final profile = state.profile;
     state = AuthState(
@@ -216,44 +244,48 @@ final farmsProvider = NotifierProvider<FarmController, FarmsState>(
 // ---------------------------------------------------------------------------
 
 final motorStatusProvider =
-    FutureProvider.family<OfflineResult<MotorStatus>, String>((ref, farmId) async {
-  final backend = ref.watch(backendProvider);
-  final cache = ref.watch(cacheProvider);
-  try {
-    final json = await backend.getMotorStatusJson(farmId);
-    await cache.putMotorStatus(farmId, json);
-    return OfflineResult(MotorStatus.fromJson(json), fromCache: false);
-  } catch (_) {
-    final cached = await cache.getMotorStatus(farmId);
-    if (cached == null) rethrow;
-    return OfflineResult(
-      MotorStatus.fromJson(cached.data),
-      fromCache: true,
-      savedAt: cached.savedAt,
-    );
-  }
-});
+    FutureProvider.family<OfflineResult<MotorStatus>, String>((
+      ref,
+      farmId,
+    ) async {
+      final backend = ref.watch(backendProvider);
+      final cache = ref.watch(cacheProvider);
+      try {
+        final json = await backend.getMotorStatusJson(farmId);
+        await cache.putMotorStatus(farmId, json);
+        return OfflineResult(MotorStatus.fromJson(json), fromCache: false);
+      } catch (_) {
+        final cached = await cache.getMotorStatus(farmId);
+        if (cached == null) rethrow;
+        return OfflineResult(
+          MotorStatus.fromJson(cached.data),
+          fromCache: true,
+          savedAt: cached.savedAt,
+        );
+      }
+    });
 
 final recommendationsProvider =
-    FutureProvider.family<OfflineResult<Recommendations>, String>(
-  (ref, farmId) async {
-    final backend = ref.watch(backendProvider);
-    final cache = ref.watch(cacheProvider);
-    try {
-      final json = await backend.getRecommendationsJson(farmId);
-      await cache.putRecommendations(farmId, json);
-      return OfflineResult(Recommendations.fromJson(json), fromCache: false);
-    } catch (_) {
-      final cached = await cache.getRecommendations(farmId);
-      if (cached == null) rethrow;
-      return OfflineResult(
-        Recommendations.fromJson(cached.data),
-        fromCache: true,
-        savedAt: cached.savedAt,
-      );
-    }
-  },
-);
+    FutureProvider.family<OfflineResult<Recommendations>, String>((
+      ref,
+      farmId,
+    ) async {
+      final backend = ref.watch(backendProvider);
+      final cache = ref.watch(cacheProvider);
+      try {
+        final json = await backend.getRecommendationsJson(farmId);
+        await cache.putRecommendations(farmId, json);
+        return OfflineResult(Recommendations.fromJson(json), fromCache: false);
+      } catch (_) {
+        final cached = await cache.getRecommendations(farmId);
+        if (cached == null) rethrow;
+        return OfflineResult(
+          Recommendations.fromJson(cached.data),
+          fromCache: true,
+          savedAt: cached.savedAt,
+        );
+      }
+    });
 
 // ---------------------------------------------------------------------------
 // Simple server data
@@ -275,16 +307,20 @@ final settingsProvider = FutureProvider<AppSettings>((ref) {
   return ref.watch(backendProvider).getSettings();
 });
 
-final fieldsProvider =
-    FutureProvider.family<List<FieldArea>, String>((ref, farmId) {
+final fieldsProvider = FutureProvider.family<List<FieldArea>, String>((
+  ref,
+  farmId,
+) {
   return ref.watch(backendProvider).getFields(farmId);
 });
 
 /// Weather for the selected farm, plus the latest irrigation decision.
 /// Never throws: on any failure it returns empty data so the Home screen
 /// degrades gracefully instead of crashing.
-final farmWeatherProvider =
-    FutureProvider.family<WeatherInfo, String>((ref, farmId) async {
+final farmWeatherProvider = FutureProvider.family<WeatherInfo, String>((
+  ref,
+  farmId,
+) async {
   try {
     return await ref.watch(backendProvider).getFarmWeather(farmId);
   } catch (_) {
@@ -304,8 +340,10 @@ final vendorOpportunitiesProvider = FutureProvider<List<DemandRequest>>((ref) {
   return ref.watch(backendProvider).vendorOpportunities();
 });
 
-final impactProvider =
-    FutureProvider.family<ImpactMetrics, String>((ref, farmId) async {
+final impactProvider = FutureProvider.family<ImpactMetrics, String>((
+  ref,
+  farmId,
+) async {
   return ref.watch(backendProvider).getImpact(farmId);
 });
 

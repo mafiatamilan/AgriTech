@@ -18,6 +18,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
   final _password = TextEditingController();
   final _name = TextEditingController();
   final _formKey = GlobalKey<FormState>();
+  AccountType _accountType = AccountType.farmer;
   bool _isSignup = false;
   bool _submitting = false;
   String? _error;
@@ -39,12 +40,21 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
 
     try {
       final auth = ref.read(authProvider.notifier);
+      ref.read(accountTypeProvider.notifier).state = _accountType;
       if (_isSignup) {
-        await auth.signup(
-          _email.text.trim(),
-          _password.text,
-          _name.text.trim(),
-        );
+        if (_accountType == AccountType.vendor) {
+          await auth.signupVendor(
+            _email.text.trim(),
+            _password.text,
+            _name.text.trim(),
+          );
+        } else {
+          await auth.signup(
+            _email.text.trim(),
+            _password.text,
+            _name.text.trim(),
+          );
+        }
       } else {
         await auth.login(_email.text.trim(), _password.text);
       }
@@ -71,9 +81,33 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
               children: [
                 const Icon(Icons.agriculture, size: 72, color: AppColors.green),
                 const SizedBox(height: 16),
-                Text(l10n.appTitle,
-                    style: Theme.of(context).textTheme.headlineMedium),
+                Text(
+                  l10n.appTitle,
+                  style: Theme.of(context).textTheme.headlineMedium,
+                ),
                 const SizedBox(height: 32),
+                SegmentedButton<AccountType>(
+                  segments: const [
+                    ButtonSegment(
+                      value: AccountType.farmer,
+                      icon: Icon(Icons.agriculture_outlined),
+                      label: Text('Farmer'),
+                    ),
+                    ButtonSegment(
+                      value: AccountType.vendor,
+                      icon: Icon(Icons.storefront_outlined),
+                      label: Text('Vendor'),
+                    ),
+                  ],
+                  selected: {_accountType},
+                  onSelectionChanged: _submitting
+                      ? null
+                      : (selection) => setState(() {
+                          _accountType = selection.first;
+                          _error = null;
+                        }),
+                ),
+                const SizedBox(height: 20),
                 if (_isSignup) ...[
                   TextFormField(
                     controller: _name,
@@ -119,19 +153,25 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                             height: 20,
                             child: CircularProgressIndicator(strokeWidth: 2),
                           )
-                        : Text(_isSignup ? 'Sign up' : 'Log in'),
+                        : Text(
+                            _isSignup
+                                ? 'Sign up as ${_accountType.name}'
+                                : 'Log in as ${_accountType.name}',
+                          ),
                   ),
                 ),
                 TextButton(
                   onPressed: _submitting
                       ? null
                       : () => setState(() {
-                            _isSignup = !_isSignup;
-                            _error = null;
-                          }),
-                  child: Text(_isSignup
-                      ? 'Already have an account? Log in'
-                      : 'New farmer? Create an account'),
+                          _isSignup = !_isSignup;
+                          _error = null;
+                        }),
+                  child: Text(
+                    _isSignup
+                        ? 'Already have an account? Log in'
+                        : 'New here? Create an account',
+                  ),
                 ),
               ],
             ),
