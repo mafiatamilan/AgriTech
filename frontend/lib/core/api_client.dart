@@ -39,21 +39,21 @@ class ApiClient {
   }
 
   Future<dynamic> get(String path, {Map<String, String>? query}) =>
-      _send(() => _client.get(_uri(path, query), headers: _headers()));
+      _send(() => _client.get(_uri(path, query), headers: _headers()), path: path);
 
   Future<dynamic> post(String path, {Object? body, Map<String, String>? query}) =>
       _send(() => _client.post(
             _uri(path, query),
             headers: _headers(),
             body: jsonEncode(body),
-          ));
+          ), path: path);
 
   Future<dynamic> patch(String path, {Object? body, Map<String, String>? query}) =>
       _send(() => _client.patch(
             _uri(path, query),
             headers: _headers(),
             body: jsonEncode(body),
-          ));
+          ), path: path);
 
   /// POST with extended timeout (for LLM calls).
   Future<dynamic> postLong(String path, {Object? body, Map<String, String>? query}) =>
@@ -61,7 +61,7 @@ class ApiClient {
             _uri(path, query),
             headers: _headers(),
             body: jsonEncode(body),
-          ), longTimeout: true);
+          ), longTimeout: true, path: path);
 
   /// Multipart POST (photo upload, chat messages with image).
   Future<dynamic> postMultipart(
@@ -86,15 +86,21 @@ class ApiClient {
     return _send(() async {
       final streamed = await _client.send(request);
       return http.Response.fromStream(streamed);
-    }, longTimeout: longTimeout);
+    }, longTimeout: longTimeout, path: path);
   }
 
   static const _timeout = Duration(seconds: 30);
   static const _longTimeout = Duration(seconds: 120);
 
-  Future<dynamic> _send(Future<http.Response> Function() call, {bool longTimeout = false}) async {
+  Future<dynamic> _send(
+    Future<http.Response> Function() call, {
+    bool longTimeout = false,
+    required String path,
+  }) async {
     var response = await call().timeout(longTimeout ? _longTimeout : _timeout);
-    if (response.statusCode == 401) {
+    // OAuth exchange is the login/bootstrap request. Refreshing here emits
+    // another auth-state event, which starts another exchange and can loop.
+    if (response.statusCode == 401 && path != '/auth/oauth/exchange') {
       // Expired Supabase session — refresh once and retry.
       try {
         await supabase.auth.refreshSession();

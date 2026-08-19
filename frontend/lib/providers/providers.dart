@@ -29,6 +29,9 @@ class AuthState {
 }
 
 class AuthController extends Notifier<AuthState> {
+  Future<void>? _exchangeInFlight;
+  String? _exchangingToken;
+
   @override
   AuthState build() {
     final sub = supabase.auth.onAuthStateChange.listen((data) {
@@ -50,6 +53,24 @@ class AuthController extends Notifier<AuthState> {
   }
 
   Future<void> _exchange(String token) async {
+    if (_exchangingToken == token && _exchangeInFlight != null) {
+      return _exchangeInFlight!;
+    }
+
+    _exchangingToken = token;
+    final exchangeFuture = _performExchange(token);
+    _exchangeInFlight = exchangeFuture;
+    try {
+      await exchangeFuture;
+    } finally {
+      if (identical(_exchangeInFlight, exchangeFuture)) {
+        _exchangeInFlight = null;
+        _exchangingToken = null;
+      }
+    }
+  }
+
+  Future<void> _performExchange(String token) async {
     state = const AuthState(AuthStatus.loading);
     try {
       final exchange = await ref.read(backendProvider).exchangeOAuth(token);
@@ -57,7 +78,21 @@ class AuthController extends Notifier<AuthState> {
         exchange.isNewUser ? AuthStatus.needsOnboarding : AuthStatus.ready,
         profile: exchange.profile,
       );
+    } on ApiException catch (error) {
+      state = const AuthState(AuthStatus.needsLogin);
+      // An exchange 401 means this session cannot authenticate with the
+      // backend. Clear it so token refresh/auth events do not keep retrying
+      // the same invalid token every minute.
+      if (error.isUnauthorized &&
+          supabase.auth.currentSession?.accessToken == token) {
+        try {
+          await supabase.auth.signOut();
+        } on Exception {
+          // The UI is already in needsLogin; there is nothing else to do.
+        }
+      }
     } on Exception {
+      // Preserve the session for transient network/server errors.
       state = const AuthState(AuthStatus.needsLogin);
     }
   }
