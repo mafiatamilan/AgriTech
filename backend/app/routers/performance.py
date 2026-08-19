@@ -1,5 +1,5 @@
 from fastapi import APIRouter, HTTPException, Depends
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 from app.core.deps import get_current_farmer
 from app.db.supabase_client import get_supabase
 
@@ -17,7 +17,7 @@ class CropPerformanceCreate(BaseModel):
     revenue: float | None = None
     cost: float | None = None
     profit: float | None = None
-    weather_summary: dict | None = None
+    weather_summary: dict = Field(default_factory=dict)
     notes: str | None = None
 
 
@@ -42,7 +42,10 @@ async def record_crop_performance(
         "revenue": req.revenue,
         "cost": req.cost,
         "profit": req.profit,
-        "weather_summary": req.weather_summary,
+        # The database column is NOT NULL with a '{}' default. Explicitly
+        # send an object because Supabase receives JSON null when the client
+        # omits this optional field from the request model.
+        "weather_summary": req.weather_summary or {},
         "notes": req.notes,
     }).execute()
 

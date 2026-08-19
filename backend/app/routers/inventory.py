@@ -1,10 +1,21 @@
 from datetime import date
-from fastapi import APIRouter, HTTPException, Depends, Form
+from fastapi import APIRouter, HTTPException, Depends, Request
+from pydantic import BaseModel, Field, ValidationError
 from app.core.deps import get_current_farmer
 from app.db.supabase_client import get_supabase
 from app.services.inventory_service import record_inventory
 
 router = APIRouter(prefix="/inventory", tags=["inventory"])
+
+
+class InventoryCreate(BaseModel):
+    farm_id: str
+    crop_name: str
+    quantity: float
+    harvested_date: str | None = None
+    field_id: str | None = None
+    storage_type: str | None = None
+    quality_grade: str | None = None
 
 
 @router.get("")
@@ -37,23 +48,30 @@ async def list_inventory(current_farmer: dict = Depends(get_current_farmer)):
 
 @router.post("")
 async def add_inventory(
-    farm_id: str = Form(...),
-    crop_name: str = Form(...),
-    quantity: float = Form(...),
-    harvested_date: str = Form(None),
-    field_id: str = Form(None),
-    storage_type: str = Form(None),
-    quality_grade: str = Form(None),
+    request: Request,
     current_farmer: dict = Depends(get_current_farmer),
 ):
+    """Create inventory from either JSON or multipart form data.
+
+    The Flutter client sends JSON, while older clients used multipart form
+    data. Supporting both avoids a client-version-dependent 422 response.
+    """
+    content_type = request.headers.get("content-type", "").lower()
+    try:
+        raw = await request.form() if content_type.startswith("multipart/") else await request.json()
+        req = InventoryCreate.model_validate(dict(raw))
+    except (ValidationError, ValueError, TypeError) as exc:
+        detail = exc.errors() if isinstance(exc, ValidationError) else "Invalid inventory payload"
+        raise HTTPException(status_code=422, detail=detail) from exc
+
     sb = get_supabase()
-    farm = sb.table("farms").select("id").eq("id", farm_id).eq("farmer_id", current_farmer["id"]).execute()
+    farm = sb.table("farms").select("id").eq("id", req.farm_id).eq("farmer_id", current_farmer["id"]).execute()
     if not farm.data:
         raise HTTPException(status_code=404, detail="Farm not found")
 
-    harvested = harvested_date or date.today().isoformat()
+    harvested = req.harvested_date or date.today().isoformat()
     return await record_inventory(
-        sb, current_farmer["id"], farm_id, crop_name, quantity,
-        harvested_date=harvested, field_id=field_id,
-        storage_type=storage_type, quality_grade=quality_grade,
+        sb, current_farmer["id"], req.farm_id, req.crop_name, req.quantity,
+        harvested_date=harvested, field_id=req.field_id,
+        storage_type=req.storage_type, quality_grade=req.quality_grade,
     )
