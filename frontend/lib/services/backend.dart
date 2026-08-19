@@ -218,9 +218,13 @@ class Backend {
     return AccountInfo.fromJson(json as Map<String, dynamic>);
   }
 
-  Future<void> updateAccount({String? phone, String? name}) =>
-      _api.patch('/account',
-          body: {'phone': phone, 'name': name});
+  Future<void> updateAccount({String? phone, String? name}) => _api.patch(
+        '/account',
+        body: {
+          if (phone != null) 'phone': phone,
+          if (name != null) 'name': name,
+        },
+      );
 
   Future<WaterSaved> getWaterSaved() async {
     final json = await _api.get('/account/water-saved');

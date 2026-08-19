@@ -31,7 +31,7 @@ async def get_account(current_farmer: dict = Depends(get_current_farmer)):
 @router.patch("")
 async def update_account(req: AccountUpdate, current_farmer: dict = Depends(get_current_farmer)):
     sb = get_supabase()
-    update_data = req.model_dump(exclude_unset=True)
+    update_data = req.model_dump(exclude_unset=True, exclude_none=True)
     if update_data:
         sb.table("farmers").update(update_data).eq("id", current_farmer["id"]).execute()
     return {"status": "updated"}
