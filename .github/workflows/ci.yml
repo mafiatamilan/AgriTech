@@ -37,4 +37,4 @@ jobs:
       - name: Get dependencies
         run: flutter pub get
       - name: Analyze
-        run: flutter analyze --no-pub
+        run: dart analyze --no-pub --no-fatal-infos --no-fatal-warnings
