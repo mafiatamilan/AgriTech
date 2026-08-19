@@ -20,7 +20,9 @@ URGENCY_TO_DECISION = {
 }
 
 
-async def run_irrigation_decision(sb, farm_id: str, farmer_id: str | None = None) -> dict | None:
+async def run_irrigation_decision(
+    sb, farm_id: str, farmer_id: str | None = None, agent_run_id: str | None = None
+) -> dict | None:
     agri = agents()["agri"]
 
     farm_resp = sb.table("farms").select("*").eq("id", farm_id).limit(1).execute()
@@ -110,6 +112,7 @@ async def run_irrigation_decision(sb, farm_id: str, farmer_id: str | None = None
         "reasoning": reasoning,
         "confidence": None,
         "agent_result": agent_result,
+        "agent_run_id": agent_run_id,
     }
     resp = sb.table("irrigation_decisions").insert(row).execute()
     decision_id = resp.data[0]["id"] if resp.data else None
@@ -121,12 +124,13 @@ async def run_irrigation_decision(sb, farm_id: str, farmer_id: str | None = None
         "result_json": agent_result,
         "model_name": "SoilTypeIrrigationAgent",
         "model_version": "1",
+        "agent_run_id": agent_run_id,
     }).execute()
 
     if decision_label == "water_now":
         event_id = _create_irrigation_event(sb, farm_id, decision.recommended_duration_minutes)
         if device:
-            queue_hardware_command(sb, farm_id, "on", event_id)
+            queue_hardware_command(sb, farm_id, "on", event_id, agent_run_id=agent_run_id)
         if farmer_id:
             await create_notification(
                 sb, farmer_id, "watering",

@@ -5,6 +5,7 @@ import 'l10n/app_localizations.dart';
 import 'providers/providers.dart';
 import 'screens/account/account_screen.dart';
 import 'screens/home/home_screen.dart';
+import 'screens/impact/impact_screen.dart';
 import 'screens/market/market_screen.dart';
 import 'screens/motor/motor_screen.dart';
 import 'screens/recommendations/recommendations_screen.dart';
@@ -40,6 +41,7 @@ class _AppShellState extends ConsumerState<AppShell> {
       const MarketScreen(),
       const UploadScreen(),
       const RecommendationsScreen(),
+      const ImpactScreen(),
       const SettingsScreen(),
       const AccountScreen(),
     ];
@@ -80,8 +82,9 @@ class _AppShellState extends ConsumerState<AppShell> {
       (2, l10n.navMarket, Icons.storefront_outlined),
       (3, l10n.navUpload, Icons.camera_alt_outlined),
       (4, l10n.navRecommendations, Icons.insights_outlined),
-      (5, l10n.navSettings, Icons.settings_outlined),
-      (6, l10n.navAccount, Icons.person_outline),
+      (5, l10n.navImpact, Icons.leaderboard_outlined),
+      (6, l10n.navSettings, Icons.settings_outlined),
+      (7, l10n.navAccount, Icons.person_outline),
     ];
     return Drawer(
       child: ListView(

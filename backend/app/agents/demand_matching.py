@@ -15,7 +15,7 @@ from datetime import date, datetime, timedelta
 from app.agents.runtime import agents
 
 
-async def run_demand_matching(demand_request: dict, sb=None) -> list[dict]:
+async def run_demand_matching(demand_request: dict, sb=None, agent_run_id: str | None = None) -> list[dict]:
     crop = (demand_request.get("crop_name") or "").strip()
     if not crop or sb is None:
         return []

@@ -15,8 +15,24 @@ class Settings(BaseSettings):
     WEATHER_API_BASE_URL: str = ""
     LLM_API_KEY: str = ""
     LLM_API_BASE_URL: str = ""
+    LLM_PROVIDER: str = ""
+    LLM_MODEL: str = "nemotron-3-ultra-free"
 
-    model_config = {"env_file": ".env", "env_file_encoding": "utf-8"}
+    # Plant disease model provider: vit, roboflow, or auto
+    PLANT_DISEASE_PROVIDER: str = "vit"
+    VIT_MODEL_NAME: str = "wambugu71/crop_leaf_diseases_vit"
+
+    # Impact metric constants (demo factors — configurable, never magic numbers)
+    PUMP_FLOW_LITERS_PER_MIN: float = 40.0
+    DEFAULT_WATERING_MINUTES: float = 30.0
+    CO2E_FACTOR_KG_PER_KG_FOOD: float = 2.5
+    INDIAN_RUPEE_PER_USD: float = 83.0
+
+    # Debug / logging
+    DEBUG: bool = False
+    LOG_LEVEL: str = "INFO"
+
+    model_config = {"env_file": ".env", "env_file_encoding": "utf-8", "extra": "ignore"}
 
 
 @lru_cache

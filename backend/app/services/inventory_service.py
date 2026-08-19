@@ -22,6 +22,7 @@ async def record_inventory(
     field_id: str | None = None,
     storage_type: str | None = None,
     quality_grade: str | None = None,
+    agent_run_id: str | None = None,
 ) -> dict:
     biz = agents()["business"]
     now_iso = datetime.utcnow().isoformat()
@@ -114,6 +115,7 @@ async def record_inventory(
         },
         "model_name": "InventoryAgent",
         "model_version": "1",
+        "agent_run_id": agent_run_id,
     }).execute()
 
     if shelf.urgency.value in ("high", "urgent", "expired_risk"):

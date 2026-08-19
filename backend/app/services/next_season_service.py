@@ -7,7 +7,7 @@ Runs the CropPlanningAdvisor over `crop_performance_history` and persists
 from app.agents.runtime import agents
 
 
-async def run_next_season(sb, farm_id: str) -> dict | None:
+async def run_next_season(sb, farm_id: str, agent_run_id: str | None = None) -> dict | None:
     biz = agents()["business"]
 
     history_resp = sb.table("crop_performance_history").select("*") \
@@ -62,6 +62,7 @@ async def run_next_season(sb, farm_id: str) -> dict | None:
         },
         "model_name": "CropPlanningAdvisor",
         "model_version": "1",
+        "agent_run_id": agent_run_id,
     }).execute()
 
     return {"recommended_crops": [rec.crop for rec in result.recommendations]}

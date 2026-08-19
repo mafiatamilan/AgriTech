@@ -8,7 +8,18 @@ broker is required.
 from datetime import datetime
 
 
-def queue_hardware_command(sb, farm_id: str, action: str, irrigation_event_id: str | None = None) -> dict | None:
+def queue_hardware_command(
+    sb, farm_id: str, action: str, irrigation_event_id: str | None = None,
+    agent_run_id: str | None = None,
+) -> dict | None:
+    """Queue a validated actuator command for the farm's device.
+
+    Returns None when no device is paired — commands are never issued for a
+    missing device. `action` is validated (on/off only).
+    """
+    if action not in ("on", "off"):
+        raise ValueError(f"invalid hardware action: {action!r}")
+
     device = sb.table("farm_devices").select("id, device_uid") \
         .eq("farm_id", farm_id).limit(1).execute()
     if not device.data:
@@ -21,6 +32,7 @@ def queue_hardware_command(sb, farm_id: str, action: str, irrigation_event_id: s
         "command_type": "motor_on" if action == "on" else "motor_off",
         "payload": {"action": action},
         "publish_status": "pending",
+        "agent_run_id": agent_run_id,
     }).execute()
     return resp.data[0] if resp.data else None
 

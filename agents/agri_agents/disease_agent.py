@@ -91,25 +91,23 @@ class DiseasePredictionAgent:
                 reason_labels=("Crop mismatch", "Retake image or change crop/model"),
             )
 
-        if confidence_level == ConfidenceLevel.UNCERTAIN:
-            return PlantDiseaseDiagnosis(
-                crop=crop,
-                disease="uncertain",
-                is_healthy=False,
-                confidence_level=confidence_level,
-                severity="uncertain",
-                recommendation="Image is unclear. Retake the photo in daylight with the affected leaf centered.",
-                remedies=tuple(),
-                prevention=tuple(),
-                retake_image=True,
-                reason_labels=("Low model confidence", "Retake image"),
-            )
-
         remedy = self.remedy_advisor.lookup(crop, disease)
         recommendation = "Crop looks healthy in this image." if is_healthy else str(remedy["remedies"][0])
-        reasons = ["PlantVillage model prediction"]
+        reasons = ["ViT model prediction"]
+        retake = False
         if confidence_level == ConfidenceLevel.HIGH:
             reasons.append("High confidence")
+        elif confidence_level == ConfidenceLevel.MEDIUM:
+            reasons.append("Medium confidence — retake photo to confirm")
+            retake = True
+        elif confidence_level == ConfidenceLevel.LOW:
+            reasons.append("Low confidence — use as guidance only")
+            recommendation = (
+                f"Likely {disease.replace('_', ' ')}. "
+                + recommendation
+                + " Retake photo in good daylight for a more reliable result."
+            )
+            retake = True
         if is_healthy:
             reasons.append("No disease detected")
 
@@ -122,15 +120,17 @@ class DiseasePredictionAgent:
             recommendation=recommendation,
             remedies=tuple(remedy["remedies"]),
             prevention=tuple(remedy["prevention"]),
-            retake_image=False,
+            retake_image=retake,
             reason_labels=tuple(reasons),
         )
 
     def _confidence_level(self, confidence: float) -> ConfidenceLevel:
         if confidence >= 0.8:
             return ConfidenceLevel.HIGH
-        if confidence >= 0.6:
+        if confidence >= 0.5:
             return ConfidenceLevel.MEDIUM
+        if confidence >= 0.25:
+            return ConfidenceLevel.LOW
         return ConfidenceLevel.UNCERTAIN
 
     def _validate_image_path(self, image_path: str) -> None:

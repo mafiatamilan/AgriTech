@@ -387,6 +387,34 @@ class AppLocalizationsEn extends AppLocalizations {
   String get accountNoImpact => 'No impact recorded yet';
 
   @override
+  String get navImpact => 'Tracks & Impact';
+
+  @override
+  String get impactPrecisionAgriculture => 'Precision Agriculture';
+
+  @override
+  String get impactCircularSupplyChain => 'Circular Supply Chain';
+
+  @override
+  String get impactEmpty =>
+      'No impact data yet — run the farm agents to generate metrics';
+
+  @override
+  String get impactEstimated => 'estimated';
+
+  @override
+  String get impactMeasured => 'measured';
+
+  @override
+  String get impactBaseline => 'baseline';
+
+  @override
+  String get impactOptimized => 'optimized';
+
+  @override
+  String get impactSelectFarm => 'Select a farm to view impact';
+
+  @override
   String get vendorSignupTitle => 'Vendor sign-up';
 
   @override

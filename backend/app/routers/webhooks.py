@@ -22,6 +22,7 @@ class AgentResultPayload(BaseModel):
     image_upload_id: str | None = None
     model_name: str | None = None
     model_version: str | None = None
+    agent_run_id: str | None = None
 
 
 class HardwareStatusPayload(BaseModel):
@@ -47,6 +48,7 @@ async def receive_agent_result(
         "result_json": payload.result_json,
         "model_name": payload.model_name,
         "model_version": payload.model_version,
+        "agent_run_id": payload.agent_run_id,
     }).execute()
     agent_result_id = result_resp.data[0]["id"] if result_resp.data else None
 

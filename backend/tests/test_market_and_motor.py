@@ -34,6 +34,8 @@ class MockTable:
         return self
 
     def insert(self, row):
+        row_with_id = {"id": "mock-id-0", **row}
+        self._data = [row_with_id]
         return self
 
     def update(self, row):
@@ -69,7 +71,18 @@ def get_mock_supabase_admin():
 
 @pytest.mark.asyncio
 async def test_crop_match_returns_response():
-    with patch("app.routers.market.get_supabase", get_mock_supabase):
+    mock_sb = get_mock_supabase()
+    mock_sb._tables["vendor_requests"] = MockTable([])
+    mock_sb._tables["rescue_matches"] = MockTable([{
+        "id": "match-1",
+        "demand_request_id": "req-1",
+        "matched_buyer_info": {"buyer_name": "Vendor A", "offered_price": 10.0},
+    }])
+
+    def _get_sb():
+        return mock_sb
+
+    with patch("app.routers.market.get_supabase", _get_sb):
         from app.routers.market import crop_match
         from app.models.market import DemandRequestCreate
 

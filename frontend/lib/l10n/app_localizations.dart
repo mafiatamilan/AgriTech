@@ -820,6 +820,60 @@ abstract class AppLocalizations {
   /// **'No impact recorded yet'**
   String get accountNoImpact;
 
+  /// No description provided for @navImpact.
+  ///
+  /// In en, this message translates to:
+  /// **'Tracks & Impact'**
+  String get navImpact;
+
+  /// No description provided for @impactPrecisionAgriculture.
+  ///
+  /// In en, this message translates to:
+  /// **'Precision Agriculture'**
+  String get impactPrecisionAgriculture;
+
+  /// No description provided for @impactCircularSupplyChain.
+  ///
+  /// In en, this message translates to:
+  /// **'Circular Supply Chain'**
+  String get impactCircularSupplyChain;
+
+  /// No description provided for @impactEmpty.
+  ///
+  /// In en, this message translates to:
+  /// **'No impact data yet — run the farm agents to generate metrics'**
+  String get impactEmpty;
+
+  /// No description provided for @impactEstimated.
+  ///
+  /// In en, this message translates to:
+  /// **'estimated'**
+  String get impactEstimated;
+
+  /// No description provided for @impactMeasured.
+  ///
+  /// In en, this message translates to:
+  /// **'measured'**
+  String get impactMeasured;
+
+  /// No description provided for @impactBaseline.
+  ///
+  /// In en, this message translates to:
+  /// **'baseline'**
+  String get impactBaseline;
+
+  /// No description provided for @impactOptimized.
+  ///
+  /// In en, this message translates to:
+  /// **'optimized'**
+  String get impactOptimized;
+
+  /// No description provided for @impactSelectFarm.
+  ///
+  /// In en, this message translates to:
+  /// **'Select a farm to view impact'**
+  String get impactSelectFarm;
+
   /// No description provided for @vendorSignupTitle.
   ///
   /// In en, this message translates to:

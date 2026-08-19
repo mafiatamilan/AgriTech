@@ -107,4 +107,55 @@ void main() {
     expect(device.id, 'dev1');
     expect(device.deviceUid, 'ESP32-0001');
   });
+
+  test('ImpactMetrics parses grouped tracks with baseline/optimized', () {
+    final metrics = ImpactMetrics.fromJson({
+      'farm_id': 'f1',
+      'groups': {
+        'precision_agriculture': [
+          {
+            'metric_type': 'water_saved_liters',
+            'value': 480.0,
+            'unit': 'L',
+            'baseline_value': 1200.0,
+            'optimized_value': 720.0,
+            'measured_or_estimated': 'estimated',
+            'created_at': '2026-08-18T10:00:00Z',
+          },
+        ],
+        'circular_supply_chain': [
+          {
+            'metric_type': 'food_rescued_kg',
+            'value': 50.0,
+            'unit': 'kg',
+            'baseline_value': 0.0,
+            'optimized_value': 50.0,
+          },
+          {
+            'metric_type': 'co2e_avoided_kg',
+            'value': 125.0,
+            'unit': 'kg CO2e',
+            'baseline_value': 0.0,
+            'optimized_value': 125.0,
+          },
+        ],
+      },
+      'count': 3,
+    });
+    expect(metrics.precisionAgriculture.single.metricType, 'water_saved_liters');
+    expect(metrics.precisionAgriculture.single.baselineValue, 1200.0);
+    expect(metrics.precisionAgriculture.single.optimizedValue, 720.0);
+    expect(metrics.circularSupplyChain, hasLength(2));
+    expect(metrics.circularSupplyChain.last.label, 'co2e avoided kg');
+    expect(metrics.isEmpty, isFalse);
+  });
+
+  test('ImpactMetrics empty groups report isEmpty', () {
+    final metrics = ImpactMetrics.fromJson({
+      'farm_id': 'f1',
+      'groups': {'precision_agriculture': [], 'circular_supply_chain': []},
+      'count': 0,
+    });
+    expect(metrics.isEmpty, isTrue);
+  });
 }

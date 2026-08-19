@@ -552,6 +552,71 @@ class ImpactMetric {
   final DateTime? createdAt;
 }
 
+class ImpactMetricDetails {
+  ImpactMetricDetails({
+    required this.metricType,
+    this.value,
+    this.unit,
+    this.baselineValue,
+    this.optimizedValue,
+    this.source,
+    this.measuredOrEstimated,
+    this.metadata,
+    this.createdAt,
+  });
+
+  factory ImpactMetricDetails.fromJson(Map<String, dynamic> json) =>
+      ImpactMetricDetails(
+        metricType: json['metric_type'] as String? ?? '',
+        value: _num(json['value']),
+        unit: json['unit'] as String?,
+        baselineValue: _num(json['baseline_value']),
+        optimizedValue: _num(json['optimized_value']),
+        source: json['source'] as String?,
+        measuredOrEstimated: json['measured_or_estimated'] as String?,
+        metadata: json['metadata'] is Map<String, dynamic>
+            ? Map<String, dynamic>.from(json['metadata'] as Map)
+            : null,
+        createdAt: _date(json['created_at']),
+      );
+
+  final String metricType;
+  final double? value;
+  final String? unit;
+  final double? baselineValue;
+  final double? optimizedValue;
+  final String? source;
+  final String? measuredOrEstimated;
+  final Map<String, dynamic>? metadata;
+  final DateTime? createdAt;
+
+  String get label => metricType.replaceAll('_', ' ');
+}
+
+class ImpactMetrics {
+  ImpactMetrics({required this.precisionAgriculture, required this.circularSupplyChain});
+
+  factory ImpactMetrics.fromJson(Map<String, dynamic> json) {
+    final groups = json['groups'] is Map
+        ? Map<String, dynamic>.from(json['groups'] as Map)
+        : <String, dynamic>{};
+    List<ImpactMetricDetails> parse(String key) =>
+        (groups[key] as List? ?? [])
+            .map((e) => ImpactMetricDetails.fromJson(e as Map<String, dynamic>))
+            .toList();
+    return ImpactMetrics(
+      precisionAgriculture: parse('precision_agriculture'),
+      circularSupplyChain: parse('circular_supply_chain'),
+    );
+  }
+
+  final List<ImpactMetricDetails> precisionAgriculture;
+  final List<ImpactMetricDetails> circularSupplyChain;
+
+  bool get isEmpty =>
+      precisionAgriculture.isEmpty && circularSupplyChain.isEmpty;
+}
+
 class AccountInfo {
   AccountInfo({required this.profile, required this.impactMetrics});
 

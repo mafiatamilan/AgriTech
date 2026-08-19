@@ -55,6 +55,14 @@ class ApiClient {
             body: jsonEncode(body),
           ));
 
+  /// POST with extended timeout (for LLM calls).
+  Future<dynamic> postLong(String path, {Object? body, Map<String, String>? query}) =>
+      _send(() => _client.post(
+            _uri(path, query),
+            headers: _headers(),
+            body: jsonEncode(body),
+          ), longTimeout: true);
+
   /// Multipart POST (photo upload, chat messages with image).
   Future<dynamic> postMultipart(
     String path, {
@@ -62,6 +70,7 @@ class ApiClient {
     required String fileField,
     required File file,
     Map<String, String>? query,
+    bool longTimeout = false,
   }) {
     final request = http.MultipartRequest('POST', _uri(path, query));
     request.headers.addAll(_headers(json: false));
@@ -77,13 +86,14 @@ class ApiClient {
     return _send(() async {
       final streamed = await _client.send(request);
       return http.Response.fromStream(streamed);
-    });
+    }, longTimeout: longTimeout);
   }
 
-  static const _timeout = Duration(seconds: 10);
+  static const _timeout = Duration(seconds: 30);
+  static const _longTimeout = Duration(seconds: 120);
 
-  Future<dynamic> _send(Future<http.Response> Function() call) async {
-    var response = await call().timeout(_timeout);
+  Future<dynamic> _send(Future<http.Response> Function() call, {bool longTimeout = false}) async {
+    var response = await call().timeout(longTimeout ? _longTimeout : _timeout);
     if (response.statusCode == 401) {
       // Expired Supabase session — refresh once and retry.
       try {
