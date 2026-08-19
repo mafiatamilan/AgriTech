@@ -1,5 +1,6 @@
 import 'package:supabase_flutter/supabase_flutter.dart';
 
+import '../core/config.dart';
 import '../core/supabase.dart';
 
 /// Initializes Supabase (auth + realtime + storage) and exposes the
