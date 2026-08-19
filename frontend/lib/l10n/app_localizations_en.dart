@@ -489,4 +489,85 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get locationInvalid => 'Enter a valid latitude and longitude';
+
+  @override
+  String get navInventory => 'Inventory';
+
+  @override
+  String get inventoryAddTitle => 'Add Inventory';
+
+  @override
+  String get inventoryCropName => 'Crop name';
+
+  @override
+  String get inventoryQuantity => 'Quantity (kg)';
+
+  @override
+  String get inventoryHarvestDate => 'Harvested date';
+
+  @override
+  String get inventoryStorageType => 'Storage type (optional)';
+
+  @override
+  String get inventoryAddButton => 'Add to inventory';
+
+  @override
+  String get inventoryList => 'Your inventory';
+
+  @override
+  String get inventoryEmpty => 'No inventory yet — add your harvested crops above';
+
+  @override
+  String get inventoryAdded => 'Inventory item added';
+
+  @override
+  String get inventoryInvalidInput => 'Enter crop name and quantity';
+
+  @override
+  String get inventoryNoFarm => 'No farm found — create one first';
+
+  @override
+  String get navPerformance => 'Performance';
+
+  @override
+  String get performanceRecordTitle => 'Record Crop Performance';
+
+  @override
+  String get performanceCrop => 'Crop name';
+
+  @override
+  String get performanceSeason => 'Season (e.g. 2026-Q2)';
+
+  @override
+  String get performancePlantedDate => 'Planted date';
+
+  @override
+  String get performanceHarvestDate => 'Harvest date';
+
+  @override
+  String get performanceYield => 'Yield (kg)';
+
+  @override
+  String get performanceRevenue => 'Revenue (₹)';
+
+  @override
+  String get performanceCost => 'Cost (₹)';
+
+  @override
+  String get performanceNotes => 'Notes (optional)';
+
+  @override
+  String get performanceRecordButton => 'Record performance';
+
+  @override
+  String get performanceHistory => 'Performance history';
+
+  @override
+  String get performanceEmpty => 'No performance records yet';
+
+  @override
+  String get performanceRecorded => 'Performance recorded';
+
+  @override
+  String get performanceInvalidInput => 'Enter crop name and at least yield or revenue';
 }

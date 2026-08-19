@@ -35,16 +35,38 @@ async def crop_match(
 ):
     sb = get_supabase()
 
+    # Try to get shelf life from inventory_statuses (actual agent data)
+    shelf_life_days = req.shelf_life_days
     shelf_life_expiry = None
-    if req.shelf_life_days:
+
+    inv_resp = sb.table("inventory").select("id") \
+        .eq("farmer_id", current_farmer["id"]) \
+        .eq("crop_name", req.crop_name) \
+        .order("created_at", desc=True) \
+        .limit(1).execute()
+
+    if inv_resp.data:
+        inv_id = inv_resp.data[0]["id"]
+        status_resp = sb.table("inventory_statuses").select("*") \
+            .eq("inventory_id", inv_id) \
+            .order("created_at", desc=True) \
+            .limit(1).execute()
+        if status_resp.data:
+            shelf_info = status_resp.data[0]
+            shelf_life_days = shelf_info.get("estimated_shelf_life_days") or shelf_life_days
+            sell_by = shelf_info.get("sell_by_date")
+            if sell_by:
+                shelf_life_expiry = sell_by
+
+    if shelf_life_days and not shelf_life_expiry:
         from datetime import datetime, timedelta
         harvested = datetime.fromisoformat(req.harvested_date)
-        shelf_life_expiry = harvested + timedelta(days=req.shelf_life_days)
+        shelf_life_expiry = harvested + timedelta(days=int(shelf_life_days))
 
     row = {
         "farmer_id": current_farmer["id"],
         "crop_name": req.crop_name,
-        "shelf_life_days": req.shelf_life_days,
+        "shelf_life_days": shelf_life_days,
         "harvested_date": req.harvested_date,
         "expected_price": req.expected_price,
         "shelf_life_expiry": shelf_life_expiry.isoformat() if shelf_life_expiry else None,

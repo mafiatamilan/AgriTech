@@ -1023,6 +1023,34 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Enter a valid latitude and longitude'**
   String get locationInvalid;
+
+  String get navInventory;
+  String get inventoryAddTitle;
+  String get inventoryCropName;
+  String get inventoryQuantity;
+  String get inventoryHarvestDate;
+  String get inventoryStorageType;
+  String get inventoryAddButton;
+  String get inventoryList;
+  String get inventoryEmpty;
+  String get inventoryAdded;
+  String get inventoryInvalidInput;
+  String get inventoryNoFarm;
+  String get navPerformance;
+  String get performanceRecordTitle;
+  String get performanceCrop;
+  String get performanceSeason;
+  String get performancePlantedDate;
+  String get performanceHarvestDate;
+  String get performanceYield;
+  String get performanceRevenue;
+  String get performanceCost;
+  String get performanceNotes;
+  String get performanceRecordButton;
+  String get performanceHistory;
+  String get performanceEmpty;
+  String get performanceRecorded;
+  String get performanceInvalidInput;
 }
 
 class _AppLocalizationsDelegate

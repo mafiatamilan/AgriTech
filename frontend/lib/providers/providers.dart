@@ -250,6 +250,10 @@ final impactProvider =
   return ref.watch(backendProvider).getImpact(farmId);
 });
 
+final inventoryProvider = FutureProvider<List<InventoryItem>>((ref) {
+  return ref.watch(backendProvider).getInventory();
+});
+
 // ---------------------------------------------------------------------------
 // Realtime notifications
 // ---------------------------------------------------------------------------

@@ -73,7 +73,7 @@ class ShelfLifeEngine:
             sell_by_date=sell_by,
             urgency=urgency,
             spoilage_risk=self._spoilage_risk(urgency),
-            recommendation=self._recommendation(urgency),
+            recommendation="",
             factors=tuple(factors),
         )
 

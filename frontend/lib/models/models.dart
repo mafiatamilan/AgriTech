@@ -448,7 +448,7 @@ class ChatMessage {
   });
 
   factory ChatMessage.fromJson(Map<String, dynamic> json) => ChatMessage(
-        id: json['id'] as String,
+        id: json['id'] as String? ?? 'msg_${DateTime.now().millisecondsSinceEpoch}',
         role: json['role'] as String? ?? 'user',
         content: json['content'] as String? ?? '',
         imageUrl: json['image_url'] as String?,
@@ -639,6 +639,125 @@ class WaterSaved {
       );
 
   final double totalLiters;
+}
+
+class InventoryItem {
+  InventoryItem({
+    required this.id,
+    required this.farmId,
+    required this.cropName,
+    required this.quantity,
+    this.harvestedDate,
+    this.storageType,
+    this.qualityGrade,
+    this.statusInfo,
+    this.createdAt,
+  });
+
+  factory InventoryItem.fromJson(Map<String, dynamic> json) => InventoryItem(
+        id: json['id'] as String,
+        farmId: json['farm_id'] as String,
+        cropName: json['crop_name'] as String? ?? '',
+        quantity: (_num(json['quantity']) ?? 0).toDouble(),
+        harvestedDate: json['harvested_date'] as String?,
+        storageType: json['storage_type'] as String?,
+        qualityGrade: json['quality_grade'] as String?,
+        statusInfo: json['status_info'] != null
+            ? InventoryStatus.fromJson(json['status_info'] as Map<String, dynamic>)
+            : null,
+        createdAt: _date(json['created_at']),
+      );
+
+  final String id;
+  final String farmId;
+  final String cropName;
+  final double quantity;
+  final String? harvestedDate;
+  final String? storageType;
+  final String? qualityGrade;
+  final InventoryStatus? statusInfo;
+  final DateTime? createdAt;
+}
+
+class InventoryStatus {
+  InventoryStatus({
+    required this.id,
+    required this.inventoryId,
+    required this.status,
+    this.expiryDate,
+    this.remainingDays,
+    this.freshnessScore,
+    this.createdAt,
+  });
+
+  factory InventoryStatus.fromJson(Map<String, dynamic> json) => InventoryStatus(
+        id: json['id'] as String,
+        inventoryId: json['inventory_id'] as String,
+        status: json['status'] as String? ?? 'fresh',
+        expiryDate: json['expiry_date'] as String?,
+        remainingDays: json['remaining_days'] as int?,
+        freshnessScore: _num(json['freshness_score']),
+        createdAt: _date(json['created_at']),
+      );
+
+  final String id;
+  final String inventoryId;
+  final String status;
+  final String? expiryDate;
+  final int? remainingDays;
+  final num? freshnessScore;
+  final DateTime? createdAt;
+}
+
+class CropPerformance {
+  CropPerformance({
+    required this.id,
+    required this.farmId,
+    required this.crop,
+    this.fieldId,
+    this.season,
+    this.plantedDate,
+    this.harvestDate,
+    this.yieldKg,
+    this.revenue,
+    this.cost,
+    this.profit,
+    this.weatherSummary,
+    this.notes,
+    this.createdAt,
+  });
+
+  factory CropPerformance.fromJson(Map<String, dynamic> json) => CropPerformance(
+        id: json['id'] as String,
+        farmId: json['farm_id'] as String,
+        crop: json['crop'] as String? ?? '',
+        fieldId: json['field_id'] as String?,
+        season: json['season'] as String?,
+        plantedDate: json['planted_date'] as String?,
+        harvestDate: json['harvest_date'] as String?,
+        yieldKg: _num(json['yield_kg']),
+        revenue: _num(json['revenue']),
+        cost: _num(json['cost']),
+        profit: _num(json['profit']),
+        weatherSummary: json['weather_summary'] as Map<String, dynamic>?,
+        notes: json['notes'] as String?,
+        createdAt: _date(json['created_at']),
+      );
+
+  final String id;
+  final String farmId;
+  final String crop;
+  final String? fieldId;
+  final String? season;
+  final String? plantedDate;
+  final String? harvestDate;
+  final num? yieldKg;
+  final num? revenue;
+  final num? cost;
+  final num? profit;
+  final Map<String, dynamic>? weatherSummary;
+  final String? notes;
+  final DateTime? createdAt;
 }
 
 class VendorRequest {

@@ -44,7 +44,7 @@ GROWTH_STAGE_MULTIPLIER: dict[GrowthStage, float] = {
 }
 
 
-class SoilTypeIrrigationAgent:
+class WaterIrrigationAgent:
     """Irrigation decision logic without soil sensors or root-zone inputs."""
 
     def __init__(
@@ -194,4 +194,5 @@ class SoilTypeIrrigationAgent:
         return f"Irrigation is recommended for {duration} minutes. Farmer approval is required in manual mode."
 
 
-SoilMoistureIrrigationAgent = SoilTypeIrrigationAgent
+SoilTypeIrrigationAgent = WaterIrrigationAgent
+SoilMoistureIrrigationAgent = WaterIrrigationAgent

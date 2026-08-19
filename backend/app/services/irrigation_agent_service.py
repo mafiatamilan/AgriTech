@@ -1,7 +1,7 @@
 """Irrigation agent orchestration.
 
 Collects farm/field/crop/weather/moisture/device context, runs the
-SoilTypeIrrigationAgent, persists the decision in `irrigation_decisions` +
+WaterIrrigationAgent, persists the decision in `irrigation_decisions` +
 `agent_results`, and dispatches a hardware command when watering is required.
 """
 
@@ -84,7 +84,7 @@ async def run_irrigation_decision(
         condition=weather.get("condition") or "clear",
     )
 
-    decision = agri.SoilTypeIrrigationAgent().decide(context, weather_obj)
+    decision = agri.WaterIrrigationAgent().decide(context, weather_obj)
     decision_label = URGENCY_TO_DECISION.get(decision.urgency.value, "monitor")
     reasoning = decision.recommendation or " ".join(decision.reason_labels)
 
@@ -122,7 +122,7 @@ async def run_irrigation_decision(
         "field_id": field_id,
         "agent_type": "irrigation",
         "result_json": agent_result,
-        "model_name": "SoilTypeIrrigationAgent",
+        "model_name": "WaterIrrigationAgent",
         "model_version": "1",
         "agent_run_id": agent_run_id,
     }).execute()

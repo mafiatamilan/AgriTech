@@ -18,7 +18,7 @@ class SettingsUpdate(BaseModel):
 @router.get("")
 async def get_settings(current_farmer: dict = Depends(get_current_farmer)):
     sb = get_supabase()
-    resp = sb.table("farmers").select("preferred_language, soil_type, area_locality") \
+    resp = sb.table("farmers").select("preferred_language, soil_type, area_locality, notification_prefs") \
         .eq("id", current_farmer["id"]).execute()
     if not resp.data:
         return {
@@ -30,13 +30,14 @@ async def get_settings(current_farmer: dict = Depends(get_current_farmer)):
             "notification_system": True,
         }
     row = resp.data[0]
+    prefs = row.get("notification_prefs") or {}
     return {
         "preferred_language": row.get("preferred_language", "en"),
         "soil_type": row.get("soil_type"),
         "area_locality": row.get("area_locality"),
-        "notification_watering": True,
-        "notification_match": True,
-        "notification_system": True,
+        "notification_watering": prefs.get("watering", True),
+        "notification_match": prefs.get("match", True),
+        "notification_system": prefs.get("system", True),
     }
 
 
@@ -49,8 +50,15 @@ async def update_settings(req: SettingsUpdate, current_farmer: dict = Depends(ge
     for key in ("preferred_language", "soil_type", "area_locality"):
         if key in update_data:
             db_fields[key] = update_data.pop(key)
+    # Handle notification prefs
+    notif_fields = {}
+    for key in ("notification_watering", "notification_match", "notification_system"):
+        if key in update_data:
+            notif_key = key.replace("notification_", "")
+            notif_fields[notif_key] = update_data.pop(key)
+    if notif_fields:
+        db_fields["notification_prefs"] = notif_fields
     if db_fields:
         sb.table("farmers").update(db_fields) \
             .eq("id", current_farmer["id"]).execute()
-    # notification_* fields accepted but not yet persisted
     return {"status": "updated"}

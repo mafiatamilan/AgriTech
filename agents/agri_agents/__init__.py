@@ -1,7 +1,7 @@
 """Farm-side agents for the smart farming multi-agent platform."""
 
 from .disease_agent import DiseasePredictionAgent, StaticPlantVillageModelAdapter
-from .irrigation_agent import SoilMoistureIrrigationAgent, SoilTypeIrrigationAgent
+from .irrigation_agent import WaterIrrigationAgent, SoilTypeIrrigationAgent, SoilMoistureIrrigationAgent
 from .model_adapters import ViTPlantDiseaseModelAdapter
 from .supervisor import AgriSupervisorAgent
 
@@ -10,6 +10,7 @@ __all__ = [
     "DiseasePredictionAgent",
     "SoilMoistureIrrigationAgent",
     "SoilTypeIrrigationAgent",
+    "WaterIrrigationAgent",
     "StaticPlantVillageModelAdapter",
     "ViTPlantDiseaseModelAdapter",
 ]

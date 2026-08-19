@@ -230,6 +230,63 @@ class Backend {
 
   Future<void> vendorAccept(String requestId) =>
       _api.post('/vendors/opportunities/$requestId/accept');
+
+  // ---- inventory ----
+  Future<List<InventoryItem>> getInventory() async {
+    final json = await _api.get('/inventory') as List;
+    return json
+        .map((e) => InventoryItem.fromJson(e as Map<String, dynamic>))
+        .toList();
+  }
+
+  Future<void> addInventory({
+    required String farmId,
+    required String cropName,
+    required double quantity,
+    String? harvestedDate,
+    String? fieldId,
+    String? storageType,
+    String? qualityGrade,
+  }) =>
+      _api.postMultipart('/inventory', fields: {
+        'farm_id': farmId,
+        'crop_name': cropName,
+        'quantity': quantity.toString(),
+        if (harvestedDate != null) 'harvested_date': harvestedDate,
+        if (fieldId != null) 'field_id': fieldId,
+        if (storageType != null) 'storage_type': storageType,
+        if (qualityGrade != null) 'quality_grade': qualityGrade,
+      });
+
+  // ---- performance ----
+  Future<void> recordCropPerformance({
+    required String farmId,
+    required String crop,
+    String? fieldId,
+    String? season,
+    String? plantedDate,
+    String? harvestDate,
+    double? yieldKg,
+    double? revenue,
+    double? cost,
+    double? profit,
+    Map<String, dynamic>? weatherSummary,
+    String? notes,
+  }) =>
+      _api.post('/performance/crop', body: {
+        'farm_id': farmId,
+        'crop': crop,
+        if (fieldId != null) 'field_id': fieldId,
+        if (season != null) 'season': season,
+        if (plantedDate != null) 'planted_date': plantedDate,
+        if (harvestDate != null) 'harvest_date': harvestDate,
+        if (yieldKg != null) 'yield_kg': yieldKg,
+        if (revenue != null) 'revenue': revenue,
+        if (cost != null) 'cost': cost,
+        if (profit != null) 'profit': profit,
+        if (weatherSummary != null) 'weather_summary': weatherSummary,
+        if (notes != null) 'notes': notes,
+      });
 }
 
 class OfflineResult<T> {

@@ -6,8 +6,10 @@ import 'providers/providers.dart';
 import 'screens/account/account_screen.dart';
 import 'screens/home/home_screen.dart';
 import 'screens/impact/impact_screen.dart';
+import 'screens/inventory/inventory_screen.dart';
 import 'screens/market/market_screen.dart';
 import 'screens/motor/motor_screen.dart';
+import 'screens/performance/performance_screen.dart';
 import 'screens/recommendations/recommendations_screen.dart';
 import 'screens/settings/settings_screen.dart';
 import 'screens/upload/upload_screen.dart';
@@ -44,6 +46,8 @@ class _AppShellState extends ConsumerState<AppShell> {
       const ImpactScreen(),
       const SettingsScreen(),
       const AccountScreen(),
+      const InventoryScreen(),
+      const PerformanceScreen(),
     ];
 
     return Scaffold(
@@ -85,6 +89,8 @@ class _AppShellState extends ConsumerState<AppShell> {
       (5, l10n.navImpact, Icons.leaderboard_outlined),
       (6, l10n.navSettings, Icons.settings_outlined),
       (7, l10n.navAccount, Icons.person_outline),
+      (8, l10n.navInventory, Icons.inventory_2_outlined),
+      (9, l10n.navPerformance, Icons.bar_chart_outlined),
     ];
     return Drawer(
       child: ListView(
