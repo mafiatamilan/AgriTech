@@ -72,18 +72,17 @@ class _VendorHomeScreenState extends ConsumerState<VendorHomeScreen> {
   Future<void> _accept(DemandRequest opportunity) async {
     final l10n = AppLocalizations.of(context);
     final available = opportunity.remainingQuantityKg ?? opportunity.quantityKg;
-    final controller = TextEditingController(
-      text: available == null ? '' : available.toStringAsFixed(2),
-    );
+    var quantityText = available == null ? '' : available.toStringAsFixed(2);
     final quantity = await showDialog<double>(
       context: context,
       builder: (context) => AlertDialog(
         title: Text('How much ${opportunity.cropName} do you need?'),
-        content: TextField(
-          controller: controller,
+        content: TextFormField(
+          initialValue: quantityText,
           autofocus: true,
           keyboardType: const TextInputType.numberWithOptions(decimal: true),
           decoration: const InputDecoration(labelText: 'Quantity (kg)'),
+          onChanged: (value) => quantityText = value,
         ),
         actions: [
           TextButton(
@@ -92,14 +91,20 @@ class _VendorHomeScreenState extends ConsumerState<VendorHomeScreen> {
           ),
           FilledButton(
             onPressed: () =>
-                Navigator.pop(context, double.tryParse(controller.text.trim())),
+                Navigator.pop(context, double.tryParse(quantityText.trim())),
             child: Text(l10n.vendorAccept),
           ),
         ],
       ),
     );
-    controller.dispose();
-    if (quantity == null || quantity <= 0) return;
+    if (!mounted || quantity == null || quantity <= 0) return;
+    if (available != null && quantity > available) {
+      showError(
+        context,
+        'Only ${available.toStringAsFixed(2)} kg is available',
+      );
+      return;
+    }
     try {
       await ref.read(backendProvider).vendorAccept(opportunity.id, quantity);
       ref.invalidate(vendorOpportunitiesProvider);

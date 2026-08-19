@@ -13,6 +13,15 @@ from app.agents.transport_routing import (
 router = APIRouter(prefix="/vendors", tags=["vendors"])
 
 
+def _as_float(value) -> float:
+    if value is None:
+        return 0.0
+    try:
+        return float(value)
+    except (TypeError, ValueError):
+        return 0.0
+
+
 class VendorSignupRequest(BaseModel):
     name: str | None = None
     phone: str | None = None
@@ -122,11 +131,21 @@ async def list_opportunities(current_farmer: dict = Depends(get_current_farmer))
         .execute()
     bid_ids = {b["demand_request_id"] for b in bids.data or []}
 
-    return [
-        r for r in requests
-        if r["id"] not in bid_ids
-        and (r.get("remaining_quantity_kg") is None or float(r.get("remaining_quantity_kg") or 0) > 0)
-    ]
+    visible_requests = []
+    for request in requests:
+        available = (
+            request.get("remaining_quantity_kg")
+            if request.get("remaining_quantity_kg") is not None
+            else request.get("quantity_kg")
+        )
+        if (
+            request["id"] not in bid_ids
+            and request.get("farmer_id") != current_farmer["id"]
+            and (request.get("crop_name") or "").strip()
+            and _as_float(available) > 0
+        ):
+            visible_requests.append(request)
+    return visible_requests
 
 
 @router.post("/opportunities/{request_id}/route")
