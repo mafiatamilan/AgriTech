@@ -39,6 +39,8 @@ async def run_irrigation_decision(
     soil = (field or {}).get("soil_type") or farm.get("soil_type")
     growth_stage = (field or {}).get("growth_stage")
     planting_date = (field or {}).get("planted_date")
+    area_size = (field or {}).get("area_size")
+    pump_flow_lpm = (field or {}).get("pump_flow_lpm")
 
     weather = await get_weather_snapshot(
         sb, farm_id, field_id=field_id, crop=crop,
@@ -72,6 +74,8 @@ async def run_irrigation_decision(
         growth_stage=_parse_enum(m.GrowthStage, growth_stage),
         last_irrigation_date=last_irrigation_date,
         auto_irrigation_enabled=bool(device),
+        field_area_m2=_as_float(area_size),
+        pump_flow_lpm=_as_float(pump_flow_lpm),
     )
     weather_obj = m.WeatherSnapshot(
         avg_temp_c=float(weather.get("avg_temp_c") or 0),
@@ -95,6 +99,10 @@ async def run_irrigation_decision(
         "confidence": None,
         "reason_labels": list(decision.reason_labels),
         "estimated_water_need_mm": decision.estimated_water_need_mm,
+        "estimated_water_volume_liters": decision.estimated_water_volume_liters,
+        "field_area_m2": decision.field_area_m2,
+        "pump_flow_lpm": decision.pump_flow_lpm,
+        "pump_flow_estimated": decision.pump_flow_estimated,
     }
 
     row = {
@@ -161,6 +169,13 @@ def _as_date(value):
     try:
         return date.fromisoformat(str(value)[:10])
     except (ValueError, TypeError):
+        return None
+
+
+def _as_float(value):
+    try:
+        return float(value)
+    except (TypeError, ValueError):
         return None
 
 

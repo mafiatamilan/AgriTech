@@ -66,6 +66,31 @@ class Backend {
   Future<void> updateFarmLocation(String farmId, double lat, double lon) =>
       _api.patch('/farms/$farmId', body: {'latitude': lat, 'longitude': lon});
 
+  // ---- fields (irrigation configuration) ----
+  Future<List<FieldArea>> getFields(String farmId) async {
+    final json = await _api.get('/farms/$farmId/fields') as List;
+    return json
+        .map((e) => FieldArea.fromJson(e as Map<String, dynamic>))
+        .toList();
+  }
+
+  Future<FieldArea> createField(String farmId, FieldArea field) async {
+    final json = await _api.post('/farms/$farmId/fields', body: field.toJson());
+    return FieldArea.fromJson(json as Map<String, dynamic>);
+  }
+
+  Future<FieldArea> updateField(String farmId, String fieldId, FieldArea field) async {
+    final json = await _api.patch('/farms/$farmId/fields/$fieldId',
+        body: field.toJson());
+    return FieldArea.fromJson(json as Map<String, dynamic>);
+  }
+
+  // ---- weather (Home dashboard) ----
+  Future<WeatherInfo> getFarmWeather(String farmId) async {
+    final json = await _api.get('/farms/$farmId/weather');
+    return WeatherInfo.fromJson(json as Map<String, dynamic>);
+  }
+
   Future<CropMatchResult> cropMatch({
     required String cropName,
     int? shelfLifeDays,

@@ -79,6 +79,8 @@ class CropFieldContext:
     growth_stage: Optional[GrowthStage] = None
     last_irrigation_date: Optional[date] = None
     auto_irrigation_enabled: bool = False
+    field_area_m2: Optional[float] = None
+    pump_flow_lpm: Optional[float] = None
 
 
 @dataclass(frozen=True)
@@ -101,6 +103,10 @@ class IrrigationDecision:
     recommendation: str
     reason_labels: tuple[str, ...]
     mqtt_command: Optional[MqttIrrigationCommand] = None
+    estimated_water_volume_liters: Optional[float] = None
+    field_area_m2: Optional[float] = None
+    pump_flow_lpm: Optional[float] = None
+    pump_flow_estimated: bool = False
 
 
 @dataclass(frozen=True)

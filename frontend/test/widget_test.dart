@@ -158,4 +158,105 @@ void main() {
     });
     expect(metrics.isEmpty, isTrue);
   });
+
+  test('FieldArea round-trips irrigation config', () {
+    final field = FieldArea(
+      id: 'f1',
+      fieldName: 'North field',
+      areaSize: 500,
+      cropType: 'tomato',
+      plantedDate: '2026-08-10',
+      soilType: 'loamy',
+      pumpFlowLpm: 12,
+    );
+    expect(field.toJson()['area_size'], 500);
+    expect(field.toJson()['crop_type'], 'tomato');
+    expect(field.toJson()['planted_date'], '2026-08-10');
+    expect(field.toJson()['soil_type'], 'loamy');
+    expect(field.toJson()['pump_flow_lpm'], 12);
+
+    final parsed = FieldArea.fromJson({
+      'id': 'f1',
+      'area_size': 500,
+      'crop_type': 'tomato',
+      'planted_date': '2026-08-10',
+      'soil_type': 'loamy',
+      'pump_flow_lpm': 12,
+    });
+    expect(parsed.areaSize, 500);
+    expect(parsed.cropType, 'tomato');
+    expect(parsed.pumpFlowLpm, 12);
+  });
+
+  test('FieldArea tolerates missing optional config', () {
+    final field = FieldArea.fromJson({'id': 'f1'});
+    expect(field.areaSize, isNull);
+    expect(field.pumpFlowLpm, isNull);
+    expect(field.cropType, isNull);
+  });
+
+  test('WeatherInfo parses weather plus irrigation decision', () {
+    final weather = WeatherInfo.fromJson({
+      'avg_temp_c': 28.5,
+      'max_temp_c': 33,
+      'humidity_pct': 72,
+      'rainfall_mm_today': 2.4,
+      'wind_speed_kmph': 11,
+      'condition': 'Partly Cloudy',
+      'irrigation': {
+        'decision': 'water_now',
+        'recommended_duration_minutes': 18,
+        'estimated_water_need_mm': 4.3,
+        'estimated_water_volume_liters': 216.0,
+        'field_area_m2': 500,
+        'pump_flow_lpm': 12,
+        'pump_flow_estimated': false,
+        'reasoning': 'Soil dries faster',
+        'reason_labels': ['Using configured pump flow 12 L/min'],
+      },
+    });
+    expect(weather.avgTempC, 28.5);
+    expect(weather.humidityPct, 72);
+    expect(weather.isRainExpected, isTrue);
+    final d = weather.irrigation!;
+    expect(d.recommendedDurationMinutes, 18);
+    expect(d.estimatedWaterVolumeLiters, 216.0);
+    expect(d.pumpFlowLpm, 12);
+    expect(d.pumpFlowEstimated, isFalse);
+  });
+
+  test('WeatherInfo without irrigation does not crash', () {
+    final weather = WeatherInfo.fromJson({'avg_temp_c': 30, 'condition': 'Sunny'});
+    expect(weather.irrigation, isNull);
+    expect(weather.isRainExpected, isFalse);
+  });
+
+  test('IrrigationDecision marks estimated pump flow fallback', () {
+    final d = IrrigationDecision.fromJson({
+      'decision': 'monitor',
+      'recommended_duration_minutes': 12,
+      'pump_flow_estimated': true,
+      'reason_labels': ['Using fallback pump estimate (0.35 mm/min)'],
+    });
+    expect(d.pumpFlowEstimated, isTrue);
+    expect(d.reasonLabels.single, contains('fallback'));
+  });
+
+  test('InventoryItem parses field_id and storage/quality', () {
+    final item = InventoryItem.fromJson({
+      'id': 'inv-1',
+      'farm_id': 'farm-1',
+      'crop_name': 'tomato',
+      'quantity': 20,
+      'harvested_date': '2026-08-10',
+      'storage_type': 'refrigerated',
+      'quality_grade': 'B',
+      'field_id': 'field-9',
+      'status_info': {'id': 's1', 'inventory_id': 'inv-1', 'status': 'fresh', 'remaining_days': 5},
+    });
+    expect(item.fieldId, 'field-9');
+    expect(item.storageType, 'refrigerated');
+    expect(item.qualityGrade, 'B');
+    expect(item.statusInfo!.status, 'fresh');
+  });
 }

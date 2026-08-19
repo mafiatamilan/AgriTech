@@ -503,10 +503,36 @@ class AppLocalizationsEn extends AppLocalizations {
   String get inventoryQuantity => 'Quantity (kg)';
 
   @override
+  String get inventoryQuantityInvalid => 'Quantity must be greater than zero';
+
+  @override
   String get inventoryHarvestDate => 'Harvested date';
 
   @override
-  String get inventoryStorageType => 'Storage type (optional)';
+  String get inventoryStorageType => 'Storage type';
+
+  @override
+  String get inventoryQualityGrade => 'Quality grade';
+
+  @override
+  String get inventoryField => 'Field (optional)';
+
+  @override
+  String inventoryGrade(Object grade) {
+    return 'Grade $grade';
+  }
+
+  @override
+  String get storageAmbient => 'Open Storage';
+
+  @override
+  String get storageShaded => 'Shaded / Godown';
+
+  @override
+  String get storageEvaporativeCooler => 'Cold Storage';
+
+  @override
+  String get storageRefrigerated => 'Refrigerated Storage';
 
   @override
   String get inventoryAddButton => 'Add to inventory';
@@ -515,7 +541,8 @@ class AppLocalizationsEn extends AppLocalizations {
   String get inventoryList => 'Your inventory';
 
   @override
-  String get inventoryEmpty => 'No inventory yet — add your harvested crops above';
+  String get inventoryEmpty =>
+      'No inventory yet — add your harvested crops above';
 
   @override
   String get inventoryAdded => 'Inventory item added';
@@ -569,5 +596,106 @@ class AppLocalizationsEn extends AppLocalizations {
   String get performanceRecorded => 'Performance recorded';
 
   @override
-  String get performanceInvalidInput => 'Enter crop name and at least yield or revenue';
+  String get performanceInvalidInput =>
+      'Enter crop name and at least yield or revenue';
+
+  @override
+  String get settingsIrrigationSetup => 'Irrigation setup';
+
+  @override
+  String get settingsIrrigationSetupHint =>
+      'These values are used by the irrigation agent to estimate how long to water. Complete them for accurate recommendations.';
+
+  @override
+  String get settingsFieldArea => 'Field area (m²)';
+
+  @override
+  String get settingsCropType => 'Crop type';
+
+  @override
+  String get settingsCropOther => 'Other / custom crop';
+
+  @override
+  String get settingsPlantedDate => 'Planted date';
+
+  @override
+  String get settingsPumpFlow => 'Pump flow rate (L/min)';
+
+  @override
+  String get settingsFieldSaved => 'Irrigation setup saved';
+
+  @override
+  String get settingsFieldInvalidArea => 'Field area must be greater than zero';
+
+  @override
+  String get settingsFieldInvalidPump => 'Pump flow must be greater than zero';
+
+  @override
+  String get settingsNoFarm => 'No farm found — create one first';
+
+  @override
+  String get cropTomato => 'Tomato';
+
+  @override
+  String get cropOkra => 'Okra';
+
+  @override
+  String get cropSpinach => 'Spinach';
+
+  @override
+  String get cropOnion => 'Onion';
+
+  @override
+  String get cropPotato => 'Potato';
+
+  @override
+  String get cropMaize => 'Maize';
+
+  @override
+  String get homeWeatherTitle => 'Today\'s Weather';
+
+  @override
+  String get homeWeatherUnavailable => 'Weather unavailable right now';
+
+  @override
+  String get homeWeatherMax => 'Max';
+
+  @override
+  String get homeWeatherConditionUnknown => 'Unknown';
+
+  @override
+  String homeWeatherHumidity(Object pct) {
+    return 'Humidity: $pct%';
+  }
+
+  @override
+  String homeWeatherRain(Object mm) {
+    return 'Rain: $mm mm';
+  }
+
+  @override
+  String homeWeatherWind(Object kmh) {
+    return 'Wind: $kmh km/h';
+  }
+
+  @override
+  String get homeWeatherIntelligence =>
+      'Weather intelligence is being used for irrigation decisions';
+
+  @override
+  String get homeWeatherRainExpected =>
+      'Rain expected — irrigation requirement reduced';
+
+  @override
+  String get homeWeatherHotDry =>
+      'High temperature and low humidity — higher irrigation demand';
+
+  @override
+  String homeIrrigationRecommendation(
+    Object flow,
+    Object liters,
+    Object minutes,
+  ) {
+    return 'Recommended watering: $minutes min · $liters L · pump $flow L/min';
+  }
 }

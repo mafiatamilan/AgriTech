@@ -1024,33 +1024,387 @@ abstract class AppLocalizations {
   /// **'Enter a valid latitude and longitude'**
   String get locationInvalid;
 
+  /// No description provided for @navInventory.
+  ///
+  /// In en, this message translates to:
+  /// **'Inventory'**
   String get navInventory;
+
+  /// No description provided for @inventoryAddTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Add Inventory'**
   String get inventoryAddTitle;
+
+  /// No description provided for @inventoryCropName.
+  ///
+  /// In en, this message translates to:
+  /// **'Crop name'**
   String get inventoryCropName;
+
+  /// No description provided for @inventoryQuantity.
+  ///
+  /// In en, this message translates to:
+  /// **'Quantity (kg)'**
   String get inventoryQuantity;
+
+  /// No description provided for @inventoryQuantityInvalid.
+  ///
+  /// In en, this message translates to:
+  /// **'Quantity must be greater than zero'**
+  String get inventoryQuantityInvalid;
+
+  /// No description provided for @inventoryHarvestDate.
+  ///
+  /// In en, this message translates to:
+  /// **'Harvested date'**
   String get inventoryHarvestDate;
+
+  /// No description provided for @inventoryStorageType.
+  ///
+  /// In en, this message translates to:
+  /// **'Storage type'**
   String get inventoryStorageType;
+
+  /// No description provided for @inventoryQualityGrade.
+  ///
+  /// In en, this message translates to:
+  /// **'Quality grade'**
+  String get inventoryQualityGrade;
+
+  /// No description provided for @inventoryField.
+  ///
+  /// In en, this message translates to:
+  /// **'Field (optional)'**
+  String get inventoryField;
+
+  /// No description provided for @inventoryGrade.
+  ///
+  /// In en, this message translates to:
+  /// **'Grade {grade}'**
+  String inventoryGrade(Object grade);
+
+  /// No description provided for @storageAmbient.
+  ///
+  /// In en, this message translates to:
+  /// **'Open Storage'**
+  String get storageAmbient;
+
+  /// No description provided for @storageShaded.
+  ///
+  /// In en, this message translates to:
+  /// **'Shaded / Godown'**
+  String get storageShaded;
+
+  /// No description provided for @storageEvaporativeCooler.
+  ///
+  /// In en, this message translates to:
+  /// **'Cold Storage'**
+  String get storageEvaporativeCooler;
+
+  /// No description provided for @storageRefrigerated.
+  ///
+  /// In en, this message translates to:
+  /// **'Refrigerated Storage'**
+  String get storageRefrigerated;
+
+  /// No description provided for @inventoryAddButton.
+  ///
+  /// In en, this message translates to:
+  /// **'Add to inventory'**
   String get inventoryAddButton;
+
+  /// No description provided for @inventoryList.
+  ///
+  /// In en, this message translates to:
+  /// **'Your inventory'**
   String get inventoryList;
+
+  /// No description provided for @inventoryEmpty.
+  ///
+  /// In en, this message translates to:
+  /// **'No inventory yet — add your harvested crops above'**
   String get inventoryEmpty;
+
+  /// No description provided for @inventoryAdded.
+  ///
+  /// In en, this message translates to:
+  /// **'Inventory item added'**
   String get inventoryAdded;
+
+  /// No description provided for @inventoryInvalidInput.
+  ///
+  /// In en, this message translates to:
+  /// **'Enter crop name and quantity'**
   String get inventoryInvalidInput;
+
+  /// No description provided for @inventoryNoFarm.
+  ///
+  /// In en, this message translates to:
+  /// **'No farm found — create one first'**
   String get inventoryNoFarm;
+
+  /// No description provided for @navPerformance.
+  ///
+  /// In en, this message translates to:
+  /// **'Performance'**
   String get navPerformance;
+
+  /// No description provided for @performanceRecordTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Record Crop Performance'**
   String get performanceRecordTitle;
+
+  /// No description provided for @performanceCrop.
+  ///
+  /// In en, this message translates to:
+  /// **'Crop name'**
   String get performanceCrop;
+
+  /// No description provided for @performanceSeason.
+  ///
+  /// In en, this message translates to:
+  /// **'Season (e.g. 2026-Q2)'**
   String get performanceSeason;
+
+  /// No description provided for @performancePlantedDate.
+  ///
+  /// In en, this message translates to:
+  /// **'Planted date'**
   String get performancePlantedDate;
+
+  /// No description provided for @performanceHarvestDate.
+  ///
+  /// In en, this message translates to:
+  /// **'Harvest date'**
   String get performanceHarvestDate;
+
+  /// No description provided for @performanceYield.
+  ///
+  /// In en, this message translates to:
+  /// **'Yield (kg)'**
   String get performanceYield;
+
+  /// No description provided for @performanceRevenue.
+  ///
+  /// In en, this message translates to:
+  /// **'Revenue (₹)'**
   String get performanceRevenue;
+
+  /// No description provided for @performanceCost.
+  ///
+  /// In en, this message translates to:
+  /// **'Cost (₹)'**
   String get performanceCost;
+
+  /// No description provided for @performanceNotes.
+  ///
+  /// In en, this message translates to:
+  /// **'Notes (optional)'**
   String get performanceNotes;
+
+  /// No description provided for @performanceRecordButton.
+  ///
+  /// In en, this message translates to:
+  /// **'Record performance'**
   String get performanceRecordButton;
+
+  /// No description provided for @performanceHistory.
+  ///
+  /// In en, this message translates to:
+  /// **'Performance history'**
   String get performanceHistory;
+
+  /// No description provided for @performanceEmpty.
+  ///
+  /// In en, this message translates to:
+  /// **'No performance records yet'**
   String get performanceEmpty;
+
+  /// No description provided for @performanceRecorded.
+  ///
+  /// In en, this message translates to:
+  /// **'Performance recorded'**
   String get performanceRecorded;
+
+  /// No description provided for @performanceInvalidInput.
+  ///
+  /// In en, this message translates to:
+  /// **'Enter crop name and at least yield or revenue'**
   String get performanceInvalidInput;
+
+  /// No description provided for @settingsIrrigationSetup.
+  ///
+  /// In en, this message translates to:
+  /// **'Irrigation setup'**
+  String get settingsIrrigationSetup;
+
+  /// No description provided for @settingsIrrigationSetupHint.
+  ///
+  /// In en, this message translates to:
+  /// **'These values are used by the irrigation agent to estimate how long to water. Complete them for accurate recommendations.'**
+  String get settingsIrrigationSetupHint;
+
+  /// No description provided for @settingsFieldArea.
+  ///
+  /// In en, this message translates to:
+  /// **'Field area (m²)'**
+  String get settingsFieldArea;
+
+  /// No description provided for @settingsCropType.
+  ///
+  /// In en, this message translates to:
+  /// **'Crop type'**
+  String get settingsCropType;
+
+  /// No description provided for @settingsCropOther.
+  ///
+  /// In en, this message translates to:
+  /// **'Other / custom crop'**
+  String get settingsCropOther;
+
+  /// No description provided for @settingsPlantedDate.
+  ///
+  /// In en, this message translates to:
+  /// **'Planted date'**
+  String get settingsPlantedDate;
+
+  /// No description provided for @settingsPumpFlow.
+  ///
+  /// In en, this message translates to:
+  /// **'Pump flow rate (L/min)'**
+  String get settingsPumpFlow;
+
+  /// No description provided for @settingsFieldSaved.
+  ///
+  /// In en, this message translates to:
+  /// **'Irrigation setup saved'**
+  String get settingsFieldSaved;
+
+  /// No description provided for @settingsFieldInvalidArea.
+  ///
+  /// In en, this message translates to:
+  /// **'Field area must be greater than zero'**
+  String get settingsFieldInvalidArea;
+
+  /// No description provided for @settingsFieldInvalidPump.
+  ///
+  /// In en, this message translates to:
+  /// **'Pump flow must be greater than zero'**
+  String get settingsFieldInvalidPump;
+
+  /// No description provided for @settingsNoFarm.
+  ///
+  /// In en, this message translates to:
+  /// **'No farm found — create one first'**
+  String get settingsNoFarm;
+
+  /// No description provided for @cropTomato.
+  ///
+  /// In en, this message translates to:
+  /// **'Tomato'**
+  String get cropTomato;
+
+  /// No description provided for @cropOkra.
+  ///
+  /// In en, this message translates to:
+  /// **'Okra'**
+  String get cropOkra;
+
+  /// No description provided for @cropSpinach.
+  ///
+  /// In en, this message translates to:
+  /// **'Spinach'**
+  String get cropSpinach;
+
+  /// No description provided for @cropOnion.
+  ///
+  /// In en, this message translates to:
+  /// **'Onion'**
+  String get cropOnion;
+
+  /// No description provided for @cropPotato.
+  ///
+  /// In en, this message translates to:
+  /// **'Potato'**
+  String get cropPotato;
+
+  /// No description provided for @cropMaize.
+  ///
+  /// In en, this message translates to:
+  /// **'Maize'**
+  String get cropMaize;
+
+  /// No description provided for @homeWeatherTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Today\'s Weather'**
+  String get homeWeatherTitle;
+
+  /// No description provided for @homeWeatherUnavailable.
+  ///
+  /// In en, this message translates to:
+  /// **'Weather unavailable right now'**
+  String get homeWeatherUnavailable;
+
+  /// No description provided for @homeWeatherMax.
+  ///
+  /// In en, this message translates to:
+  /// **'Max'**
+  String get homeWeatherMax;
+
+  /// No description provided for @homeWeatherConditionUnknown.
+  ///
+  /// In en, this message translates to:
+  /// **'Unknown'**
+  String get homeWeatherConditionUnknown;
+
+  /// No description provided for @homeWeatherHumidity.
+  ///
+  /// In en, this message translates to:
+  /// **'Humidity: {pct}%'**
+  String homeWeatherHumidity(Object pct);
+
+  /// No description provided for @homeWeatherRain.
+  ///
+  /// In en, this message translates to:
+  /// **'Rain: {mm} mm'**
+  String homeWeatherRain(Object mm);
+
+  /// No description provided for @homeWeatherWind.
+  ///
+  /// In en, this message translates to:
+  /// **'Wind: {kmh} km/h'**
+  String homeWeatherWind(Object kmh);
+
+  /// No description provided for @homeWeatherIntelligence.
+  ///
+  /// In en, this message translates to:
+  /// **'Weather intelligence is being used for irrigation decisions'**
+  String get homeWeatherIntelligence;
+
+  /// No description provided for @homeWeatherRainExpected.
+  ///
+  /// In en, this message translates to:
+  /// **'Rain expected — irrigation requirement reduced'**
+  String get homeWeatherRainExpected;
+
+  /// No description provided for @homeWeatherHotDry.
+  ///
+  /// In en, this message translates to:
+  /// **'High temperature and low humidity — higher irrigation demand'**
+  String get homeWeatherHotDry;
+
+  /// No description provided for @homeIrrigationRecommendation.
+  ///
+  /// In en, this message translates to:
+  /// **'Recommended watering: {minutes} min · {liters} L · pump {flow} L/min'**
+  String homeIrrigationRecommendation(
+    Object flow,
+    Object liters,
+    Object minutes,
+  );
 }
 
 class _AppLocalizationsDelegate

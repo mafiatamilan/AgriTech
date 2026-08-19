@@ -17,15 +17,23 @@ class InventoryScreen extends ConsumerStatefulWidget {
 class _InventoryScreenState extends ConsumerState<InventoryScreen> {
   final _cropController = TextEditingController();
   final _quantityController = TextEditingController();
-  final _storageController = TextEditingController();
   DateTime? _harvestedDate;
+  String? _storageType;
+  String? _qualityGrade = 'A';
+  String? _fieldId;
   bool _submitting = false;
+
+  static const _storageTypes = [
+    'ambient',
+    'shaded',
+    'evaporative_cooler',
+    'refrigerated',
+  ];
 
   @override
   void dispose() {
     _cropController.dispose();
     _quantityController.dispose();
-    _storageController.dispose();
     super.dispose();
   }
 
@@ -42,9 +50,13 @@ class _InventoryScreenState extends ConsumerState<InventoryScreen> {
 
   Future<void> _addInventory() async {
     final l10n = AppLocalizations.of(context);
-    if (_cropController.text.trim().isEmpty ||
-        _quantityController.text.trim().isEmpty) {
+    if (_cropController.text.trim().isEmpty) {
       if (mounted) showError(context, l10n.inventoryInvalidInput);
+      return;
+    }
+    final quantity = double.tryParse(_quantityController.text.trim());
+    if (quantity == null || quantity <= 0) {
+      if (mounted) showError(context, l10n.inventoryQuantityInvalid);
       return;
     }
     final farms = ref.read(farmsProvider);
@@ -59,16 +71,18 @@ class _InventoryScreenState extends ConsumerState<InventoryScreen> {
       await ref.read(backendProvider).addInventory(
             farmId: farm.id,
             cropName: _cropController.text.trim(),
-            quantity: double.parse(_quantityController.text.trim()),
+            quantity: quantity,
             harvestedDate: _harvestedDate?.toIso8601String(),
-            storageType: _storageController.text.trim().isEmpty
-                ? null
-                : _storageController.text.trim(),
+            storageType: _storageType,
+            qualityGrade: _qualityGrade,
+            fieldId: _fieldId,
           );
       ref.invalidate(inventoryProvider);
       _cropController.clear();
       _quantityController.clear();
-      _storageController.clear();
+      _storageType = null;
+      _qualityGrade = 'A';
+      _fieldId = null;
       _harvestedDate = null;
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -86,6 +100,7 @@ class _InventoryScreenState extends ConsumerState<InventoryScreen> {
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context);
     final inventory = ref.watch(inventoryProvider);
+    final farm = ref.watch(farmsProvider).currentFarm;
 
     return Scaffold(
       appBar: AppBar(title: Text(l10n.navInventory)),
@@ -99,10 +114,17 @@ class _InventoryScreenState extends ConsumerState<InventoryScreen> {
             _AddInventoryForm(
               cropController: _cropController,
               quantityController: _quantityController,
-              storageController: _storageController,
+              storageTypes: _storageTypes,
+              storageType: _storageType,
+              qualityGrade: _qualityGrade,
+              fieldId: _fieldId,
+              fields: ref.watch(fieldsProvider(farm?.id ?? '')).value ?? const [],
               harvestedDate: _harvestedDate,
               submitting: _submitting,
               onPickDate: _pickDate,
+              onStorageChanged: (v) => setState(() => _storageType = v),
+              onGradeChanged: (v) => setState(() => _qualityGrade = v),
+              onFieldChanged: (v) => setState(() => _fieldId = v),
               onSubmit: _addInventory,
             ),
             const SizedBox(height: 24),
@@ -141,20 +163,41 @@ class _AddInventoryForm extends StatelessWidget {
   const _AddInventoryForm({
     required this.cropController,
     required this.quantityController,
-    required this.storageController,
+    required this.storageTypes,
+    required this.storageType,
+    required this.qualityGrade,
+    required this.fieldId,
+    required this.fields,
     required this.harvestedDate,
     required this.submitting,
     required this.onPickDate,
+    required this.onStorageChanged,
+    required this.onGradeChanged,
+    required this.onFieldChanged,
     required this.onSubmit,
   });
 
   final TextEditingController cropController;
   final TextEditingController quantityController;
-  final TextEditingController storageController;
+  final List<String> storageTypes;
+  final String? storageType;
+  final String? qualityGrade;
+  final String? fieldId;
+  final List<FieldArea> fields;
   final DateTime? harvestedDate;
   final bool submitting;
   final VoidCallback onPickDate;
+  final ValueChanged<String?> onStorageChanged;
+  final ValueChanged<String?> onGradeChanged;
+  final ValueChanged<String?> onFieldChanged;
   final VoidCallback onSubmit;
+
+  String _storageLabel(AppLocalizations l10n, String value) => switch (value) {
+        'shaded' => l10n.storageShaded,
+        'evaporative_cooler' => l10n.storageEvaporativeCooler,
+        'refrigerated' => l10n.storageRefrigerated,
+        _ => l10n.storageAmbient,
+      };
 
   @override
   Widget build(BuildContext context) {
@@ -196,14 +239,56 @@ class _AddInventoryForm extends StatelessWidget {
               label: Text(dateLabel),
             ),
             const SizedBox(height: 12),
-            TextField(
-              controller: storageController,
+            DropdownButtonFormField<String>(
+              initialValue: storageType,
               decoration: InputDecoration(
                 labelText: l10n.inventoryStorageType,
-                hintText: 'e.g. cold_storage, open_air',
                 border: const OutlineInputBorder(),
               ),
+              items: storageTypes
+                  .map((v) => DropdownMenuItem(
+                        value: v,
+                        child: Text(_storageLabel(l10n, v)),
+                      ))
+                  .toList(),
+              onChanged: onStorageChanged,
             ),
+            const SizedBox(height: 12),
+            DropdownButtonFormField<String>(
+              initialValue: qualityGrade,
+              decoration: InputDecoration(
+                labelText: l10n.inventoryQualityGrade,
+                border: const OutlineInputBorder(),
+              ),
+              items: ['A', 'B', 'C']
+                  .map((v) => DropdownMenuItem(
+                        value: v,
+                        child: Text(l10n.inventoryGrade(v)),
+                      ))
+                  .toList(),
+              onChanged: onGradeChanged,
+            ),
+            if (fields.isNotEmpty) ...[
+              const SizedBox(height: 12),
+              DropdownButtonFormField<String?>(
+                initialValue: fieldId,
+                decoration: InputDecoration(
+                  labelText: l10n.inventoryField,
+                  border: const OutlineInputBorder(),
+                ),
+                items: [
+                  const DropdownMenuItem<String?>(
+                    value: null,
+                    child: Text('—'),
+                  ),
+                  ...fields.map((f) => DropdownMenuItem<String?>(
+                        value: f.id,
+                        child: Text(f.fieldName ?? f.cropType ?? f.id),
+                      )),
+                ],
+                onChanged: onFieldChanged,
+              ),
+            ],
             const SizedBox(height: 16),
             FilledButton.icon(
               onPressed: submitting ? null : onSubmit,

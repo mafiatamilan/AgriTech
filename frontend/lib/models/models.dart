@@ -63,6 +63,45 @@ class Farm {
   final String? location;
 }
 
+class FieldArea {
+  FieldArea({
+    required this.id,
+    this.fieldName,
+    this.areaSize,
+    this.cropType,
+    this.plantedDate,
+    this.soilType,
+    this.pumpFlowLpm,
+  });
+
+  factory FieldArea.fromJson(Map<String, dynamic> json) => FieldArea(
+        id: json['id'] as String,
+        fieldName: json['field_name'] as String?,
+        areaSize: _num(json['area_size']),
+        cropType: json['crop_type'] as String?,
+        plantedDate: json['planted_date'] as String?,
+        soilType: json['soil_type'] as String?,
+        pumpFlowLpm: _num(json['pump_flow_lpm']),
+      );
+
+  final String id;
+  final String? fieldName;
+  final double? areaSize;
+  final String? cropType;
+  final String? plantedDate;
+  final String? soilType;
+  final double? pumpFlowLpm;
+
+  Map<String, dynamic> toJson() => {
+        'field_name': fieldName,
+        'area_size': areaSize,
+        'crop_type': cropType,
+        'planted_date': plantedDate,
+        'soil_type': soilType,
+        'pump_flow_lpm': pumpFlowLpm,
+      };
+}
+
 class IrrigationEvent {
   IrrigationEvent({
     required this.status,
@@ -650,6 +689,7 @@ class InventoryItem {
     this.harvestedDate,
     this.storageType,
     this.qualityGrade,
+    this.fieldId,
     this.statusInfo,
     this.createdAt,
   });
@@ -662,6 +702,7 @@ class InventoryItem {
         harvestedDate: json['harvested_date'] as String?,
         storageType: json['storage_type'] as String?,
         qualityGrade: json['quality_grade'] as String?,
+        fieldId: json['field_id'] as String?,
         statusInfo: json['status_info'] != null
             ? InventoryStatus.fromJson(json['status_info'] as Map<String, dynamic>)
             : null,
@@ -675,6 +716,7 @@ class InventoryItem {
   final String? harvestedDate;
   final String? storageType;
   final String? qualityGrade;
+  final String? fieldId;
   final InventoryStatus? statusInfo;
   final DateTime? createdAt;
 }
@@ -785,4 +827,91 @@ class VendorRequest {
   final double? expectedPrice;
   final String status;
   final DateTime? createdAt;
+}
+
+class WeatherInfo {
+  WeatherInfo({
+    this.avgTempC,
+    this.maxTempC,
+    this.humidityPct,
+    this.rainfallMmToday,
+    this.rainfallForecastMm24h,
+    this.sunlightHours,
+    this.windSpeedKmph,
+    this.condition,
+    this.source,
+    this.recordedAt,
+    this.irrigation,
+  });
+
+  factory WeatherInfo.fromJson(Map<String, dynamic> json) => WeatherInfo(
+        avgTempC: _num(json['avg_temp_c']),
+        maxTempC: _num(json['max_temp_c']),
+        humidityPct: _num(json['humidity_pct']),
+        rainfallMmToday: _num(json['rainfall_mm_today']),
+        rainfallForecastMm24h: _num(json['rainfall_forecast_mm_24h']),
+        sunlightHours: _num(json['sunlight_hours']),
+        windSpeedKmph: _num(json['wind_speed_kmph']),
+        condition: json['condition'] as String?,
+        source: json['source'] as String?,
+        recordedAt: _date(json['recorded_at']),
+        irrigation: json['irrigation'] == null
+            ? null
+            : IrrigationDecision.fromJson(
+                Map<String, dynamic>.from(json['irrigation'] as Map)),
+      );
+
+  final double? avgTempC;
+  final double? maxTempC;
+  final double? humidityPct;
+  final double? rainfallMmToday;
+  final double? rainfallForecastMm24h;
+  final double? sunlightHours;
+  final double? windSpeedKmph;
+  final String? condition;
+  final String? source;
+  final DateTime? recordedAt;
+  final IrrigationDecision? irrigation;
+
+  bool get isRainExpected =>
+      (rainfallMmToday ?? 0) > 0 || (rainfallForecastMm24h ?? 0) > 0;
+}
+
+class IrrigationDecision {
+  IrrigationDecision({
+    this.decision,
+    this.recommendedDurationMinutes,
+    this.estimatedWaterNeedMm,
+    this.estimatedWaterVolumeLiters,
+    this.fieldAreaM2,
+    this.pumpFlowLpm,
+    this.pumpFlowEstimated = false,
+    this.reasoning,
+    this.reasonLabels = const [],
+  });
+
+  factory IrrigationDecision.fromJson(Map<String, dynamic> json) =>
+      IrrigationDecision(
+        decision: json['decision'] as String?,
+        recommendedDurationMinutes: json['recommended_duration_minutes'] as int?,
+        estimatedWaterNeedMm: _num(json['estimated_water_need_mm']),
+        estimatedWaterVolumeLiters: _num(json['estimated_water_volume_liters']),
+        fieldAreaM2: _num(json['field_area_m2']),
+        pumpFlowLpm: _num(json['pump_flow_lpm']),
+        pumpFlowEstimated: json['pump_flow_estimated'] as bool? ?? false,
+        reasoning: json['reasoning'] as String?,
+        reasonLabels: json['reason_labels'] is List
+            ? json['reason_labels'].whereType<String>().toList()
+            : const <String>[],
+      );
+
+  final String? decision;
+  final int? recommendedDurationMinutes;
+  final double? estimatedWaterNeedMm;
+  final double? estimatedWaterVolumeLiters;
+  final double? fieldAreaM2;
+  final double? pumpFlowLpm;
+  final bool pumpFlowEstimated;
+  final String? reasoning;
+  final List<String> reasonLabels;
 }

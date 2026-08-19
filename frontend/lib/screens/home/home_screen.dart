@@ -7,6 +7,7 @@ import '../../models/models.dart';
 import '../../providers/providers.dart';
 import '../../services/backend.dart';
 import '../../widgets/shared.dart';
+import '../../widgets/weather_card.dart';
 import '../notifications/notifications_screen.dart';
 
 class HomeScreen extends ConsumerWidget {
@@ -52,6 +53,7 @@ class HomeScreen extends ConsumerWidget {
               ),
             ),
             if (farmId == null) const SizedBox.shrink() else ...[
+              WeatherCard(provider: ref.watch(farmWeatherProvider(farmId))),
               _WaterSavedCard(
                 provider: ref.watch(waterSavedProvider),
               ),
@@ -74,6 +76,7 @@ class HomeScreen extends ConsumerWidget {
     ref.invalidate(notificationsProvider);
     if (farmId != null) {
       ref.invalidate(motorStatusProvider(farmId));
+      ref.invalidate(farmWeatherProvider(farmId));
       ref.read(farmsProvider.notifier).load();
     }
     await Future<void>.delayed(const Duration(milliseconds: 400));

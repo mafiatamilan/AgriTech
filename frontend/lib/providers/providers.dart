@@ -233,6 +233,23 @@ final settingsProvider = FutureProvider<AppSettings>((ref) {
   return ref.watch(backendProvider).getSettings();
 });
 
+final fieldsProvider =
+    FutureProvider.family<List<FieldArea>, String>((ref, farmId) {
+  return ref.watch(backendProvider).getFields(farmId);
+});
+
+/// Weather for the selected farm, plus the latest irrigation decision.
+/// Never throws: on any failure it returns empty data so the Home screen
+/// degrades gracefully instead of crashing.
+final farmWeatherProvider =
+    FutureProvider.family<WeatherInfo, String>((ref, farmId) async {
+  try {
+    return await ref.watch(backendProvider).getFarmWeather(farmId);
+  } catch (_) {
+    return WeatherInfo();
+  }
+});
+
 final accountProvider = FutureProvider<AccountInfo>((ref) {
   return ref.watch(backendProvider).getAccount();
 });
