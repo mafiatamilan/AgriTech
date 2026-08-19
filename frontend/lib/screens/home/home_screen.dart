@@ -11,7 +11,11 @@ import '../../widgets/weather_card.dart';
 import '../notifications/notifications_screen.dart';
 
 class HomeScreen extends ConsumerWidget {
-  const HomeScreen({super.key, required this.onNavigate, required this.onOpenDrawer});
+  const HomeScreen({
+    super.key,
+    required this.onNavigate,
+    required this.onOpenDrawer,
+  });
 
   final void Function(int index) onNavigate;
   final VoidCallback onOpenDrawer;
@@ -26,9 +30,9 @@ class HomeScreen extends ConsumerWidget {
     // In-app alert when a new notification row lands (realtime).
     ref.listen(realtimeController, (prev, next) {
       if (next > (prev ?? 0)) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(l10n.homeNotifications)),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text(l10n.homeNotifications)));
       }
     });
 
@@ -52,18 +56,19 @@ class HomeScreen extends ConsumerWidget {
                 style: Theme.of(context).textTheme.headlineSmall,
               ),
             ),
-            if (farmId == null) const SizedBox.shrink() else ...[
+            if (farmId == null)
+              const SizedBox.shrink()
+            else ...[
+              _KpiGrid(
+                waterSaved: ref.watch(waterSavedProvider),
+                motorStatus: ref.watch(motorStatusProvider(farmId)),
+                notifications: ref.watch(notificationsProvider),
+                impact: ref.watch(impactProvider(farmId)),
+              ),
               WeatherCard(provider: ref.watch(farmWeatherProvider(farmId))),
-              _WaterSavedCard(
-                provider: ref.watch(waterSavedProvider),
-              ),
-              _SignalCard(
-                provider: ref.watch(motorStatusProvider(farmId)),
-              ),
+              _SignalCard(provider: ref.watch(motorStatusProvider(farmId))),
             ],
-            _NotificationsPreview(
-              provider: ref.watch(notificationsProvider),
-            ),
+            _NotificationsPreview(provider: ref.watch(notificationsProvider)),
             const SizedBox(height: 16),
           ],
         ),
@@ -83,30 +88,143 @@ class HomeScreen extends ConsumerWidget {
   }
 }
 
-class _WaterSavedCard extends ConsumerWidget {
-  const _WaterSavedCard({required this.provider});
+class _KpiGrid extends StatelessWidget {
+  const _KpiGrid({
+    required this.waterSaved,
+    required this.motorStatus,
+    required this.notifications,
+    required this.impact,
+  });
 
-  final AsyncValue<WaterSaved> provider;
+  final AsyncValue<WaterSaved> waterSaved;
+  final AsyncValue<OfflineResult<MotorStatus>> motorStatus;
+  final AsyncValue<List<AppNotification>> notifications;
+  final AsyncValue<ImpactMetrics> impact;
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context);
-    final value = provider.value?.totalLiters ?? 0;
-    return Card(
+    final water = waterSaved.value?.totalLiters ?? 0;
+    final motor = motorStatus.value?.data;
+    final latestMoisture = motor?.moistureReadings.isEmpty ?? true
+        ? null
+        : motor!.moistureReadings.first.moisturePct;
+    final motorOn =
+        motor?.motorRelayState == true || motor?.currentStatus != null;
+    final unreadAlerts =
+        notifications.value?.where((n) => !n.isRead).length ?? 0;
+    final impactCount =
+        (impact.value?.precisionAgriculture.length ?? 0) +
+        (impact.value?.circularSupplyChain.length ?? 0);
+
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(16, 4, 16, 8),
+      child: GridView.count(
+        crossAxisCount: 2,
+        shrinkWrap: true,
+        physics: const NeverScrollableScrollPhysics(),
+        mainAxisSpacing: 8,
+        crossAxisSpacing: 8,
+        childAspectRatio: 1.55,
+        children: [
+          _KpiTile(
+            icon: Icons.water_drop_outlined,
+            label: l10n.homeWaterSaved,
+            value: '${water.toStringAsFixed(1)} ${l10n.homeLiters}',
+            color: const Color(0xFF1976D2),
+          ),
+          _KpiTile(
+            icon: motorOn ? Icons.power : Icons.power_off_outlined,
+            label: l10n.homeMotorState,
+            value: motorOn ? l10n.motorRunning : l10n.motorIdle,
+            color: motorOn ? const Color(0xFF2E7D32) : Colors.grey.shade700,
+          ),
+          _KpiTile(
+            icon: Icons.grass_outlined,
+            label: l10n.motorSoilMoisture,
+            value: latestMoisture == null
+                ? l10n.homeNoSignal
+                : '${latestMoisture.toStringAsFixed(1)}%',
+            color: const Color(0xFF00897B),
+          ),
+          _KpiTile(
+            icon: unreadAlerts > 0
+                ? Icons.notifications_active_outlined
+                : Icons.notifications_none_outlined,
+            label: l10n.homeNotifications,
+            value: unreadAlerts.toString(),
+            color: unreadAlerts > 0
+                ? Colors.orange.shade800
+                : Colors.grey.shade700,
+          ),
+          _KpiTile(
+            icon: Icons.insights_outlined,
+            label: l10n.navImpact,
+            value: impactCount.toString(),
+            color: const Color(0xFF6A1B9A),
+          ),
+          _KpiTile(
+            icon: Icons.agriculture_outlined,
+            label: l10n.navRecommendations,
+            value: impact.isLoading || motorStatus.isLoading ? '...' : 'Live',
+            color: const Color(0xFF795548),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _KpiTile extends StatelessWidget {
+  const _KpiTile({
+    required this.icon,
+    required this.label,
+    required this.value,
+    required this.color,
+  });
+
+  final IconData icon;
+  final String label;
+  final String value;
+  final Color color;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return DecoratedBox(
+      decoration: BoxDecoration(
+        color: theme.colorScheme.surface,
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(color: theme.colorScheme.outlineVariant),
+      ),
       child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
+        padding: const EdgeInsets.all(12),
+        child: Row(
           children: [
-            Text(l10n.homeWaterSaved,
-                style: Theme.of(context).textTheme.titleSmall),
-            const SizedBox(height: 8),
-            Text(
-              '${value.toStringAsFixed(1)} ${l10n.homeLiters}',
-              style: Theme.of(context)
-                  .textTheme
-                  .headlineMedium
-                  ?.copyWith(color: const Color(0xFF2E7D32)),
+            Icon(icon, color: color, size: 28),
+            const SizedBox(width: 10),
+            Expanded(
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    value,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: theme.textTheme.titleMedium?.copyWith(
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                  const SizedBox(height: 2),
+                  Text(
+                    label,
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                    style: theme.textTheme.bodySmall,
+                  ),
+                ],
+              ),
             ),
           ],
         ),
@@ -158,8 +276,8 @@ class _SignalCard extends StatelessWidget {
               relay == true
                   ? l10n.motorRunning
                   : relay == false
-                      ? l10n.motorIdle
-                      : l10n.homeNoSignal,
+                  ? l10n.motorIdle
+                  : l10n.homeNoSignal,
             ),
           ),
         ],
@@ -193,8 +311,10 @@ class _NotificationsPreview extends ConsumerWidget {
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                Text(l10n.homeNotifications,
-                    style: Theme.of(context).textTheme.titleMedium),
+                Text(
+                  l10n.homeNotifications,
+                  style: Theme.of(context).textTheme.titleMedium,
+                ),
                 TextButton(
                   onPressed: () => Navigator.of(context).push(
                     MaterialPageRoute(
