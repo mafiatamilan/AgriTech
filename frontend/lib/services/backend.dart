@@ -248,10 +248,10 @@ class Backend {
     String? storageType,
     String? qualityGrade,
   }) =>
-      _api.postMultipart('/inventory', fields: {
+      _api.post('/inventory', body: {
         'farm_id': farmId,
         'crop_name': cropName,
-        'quantity': quantity.toString(),
+        'quantity': quantity,
         if (harvestedDate != null) 'harvested_date': harvestedDate,
         if (fieldId != null) 'field_id': fieldId,
         if (storageType != null) 'storage_type': storageType,

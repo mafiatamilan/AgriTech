@@ -3,7 +3,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 
 import '../../l10n/app_localizations.dart';
-import '../../models/models.dart';
 import '../../providers/providers.dart';
 import '../../services/backend.dart';
 import '../../widgets/shared.dart';
