@@ -337,6 +337,41 @@ class Backend {
     return Map<String, dynamic>.from(json as Map);
   }
 
+  Future<TransportRouteRecommendation> vendorPlanRoute({
+    required String requestId,
+    required double pickupLatitude,
+    required double pickupLongitude,
+    required double deliveryLatitude,
+    required double deliveryLongitude,
+    required double quantityKg,
+    required String vehicleType,
+    required double vehicleCapacityKg,
+    required double transportCostPerKm,
+    required bool refrigerated,
+    double? shelfLifeHours,
+  }) async {
+    final json = await _api.post(
+      '/vendors/opportunities/$requestId/route',
+      body: {
+        'pickup_location': {
+          'latitude': pickupLatitude,
+          'longitude': pickupLongitude,
+        },
+        'delivery_location': {
+          'latitude': deliveryLatitude,
+          'longitude': deliveryLongitude,
+        },
+        'quantity_kg': quantityKg,
+        'vehicle_type': vehicleType,
+        'vehicle_capacity_kg': vehicleCapacityKg,
+        'transport_cost_per_km': transportCostPerKm,
+        'refrigerated': refrigerated,
+        if (shelfLifeHours != null) 'shelf_life_hours': shelfLifeHours,
+      },
+    );
+    return TransportRouteRecommendation.fromJson(json as Map<String, dynamic>);
+  }
+
   // ---- inventory ----
   Future<List<InventoryItem>> getInventory() async {
     final json = await _api.get('/inventory') as List;

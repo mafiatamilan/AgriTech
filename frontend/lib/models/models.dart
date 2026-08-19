@@ -377,6 +377,101 @@ class DemandRequest {
   };
 }
 
+class TransportRouteOption {
+  TransportRouteOption({
+    required this.routeId,
+    required this.label,
+    required this.distanceKm,
+    required this.estimatedTimeHours,
+    required this.estimatedTransportCost,
+    required this.spoilageRisk,
+    required this.delayRisk,
+    required this.reasonLabels,
+    required this.vehicleCapacityFit,
+  });
+
+  factory TransportRouteOption.fromJson(Map<String, dynamic> json) =>
+      TransportRouteOption(
+        routeId: json['route_id'] as String? ?? '',
+        label: json['label'] as String? ?? 'Route',
+        distanceKm: _num(json['distance_km']) ?? 0,
+        estimatedTimeHours: _num(json['estimated_time_hours']) ?? 0,
+        estimatedTransportCost: _num(json['estimated_transport_cost']) ?? 0,
+        spoilageRisk: json['spoilage_risk'] as String? ?? 'unknown',
+        delayRisk: json['delay_risk'] as String? ?? 'unknown',
+        reasonLabels: (json['reason_labels'] as List? ?? [])
+            .map((e) => e.toString())
+            .toList(),
+        vehicleCapacityFit: json['vehicle_capacity_fit'] as bool? ?? true,
+      );
+
+  final String routeId;
+  final String label;
+  final double distanceKm;
+  final double estimatedTimeHours;
+  final double estimatedTransportCost;
+  final String spoilageRisk;
+  final String delayRisk;
+  final List<String> reasonLabels;
+  final bool vehicleCapacityFit;
+}
+
+class TransportRouteRecommendation {
+  TransportRouteRecommendation({
+    required this.requestId,
+    required this.crop,
+    required this.quantityKg,
+    required this.bestRoute,
+    required this.routeOptions,
+    required this.estimatedDistanceKm,
+    required this.estimatedDurationMinutes,
+    required this.estimatedTransportCost,
+    required this.spoilageRisk,
+    required this.delayRisk,
+    required this.reasonLabels,
+  });
+
+  factory TransportRouteRecommendation.fromJson(Map<String, dynamic> json) {
+    final bestRoute = json['best_route'] is Map
+        ? TransportRouteOption.fromJson(
+            Map<String, dynamic>.from(json['best_route'] as Map),
+          )
+        : TransportRouteOption.fromJson(const <String, dynamic>{});
+    return TransportRouteRecommendation(
+      requestId: json['request_id'] as String? ?? '',
+      crop: json['crop'] as String? ?? '',
+      quantityKg: _num(json['quantity_kg']) ?? 0,
+      bestRoute: bestRoute,
+      routeOptions: (json['route_options'] as List? ?? [])
+          .whereType<Map>()
+          .map(
+            (e) => TransportRouteOption.fromJson(Map<String, dynamic>.from(e)),
+          )
+          .toList(),
+      estimatedDistanceKm: _num(json['estimated_distance_km']) ?? 0,
+      estimatedDurationMinutes: _int(json['estimated_duration_minutes']) ?? 0,
+      estimatedTransportCost: _num(json['estimated_transport_cost']) ?? 0,
+      spoilageRisk: json['spoilage_risk'] as String? ?? 'unknown',
+      delayRisk: json['delay_risk'] as String? ?? 'unknown',
+      reasonLabels: (json['reason_labels'] as List? ?? [])
+          .map((e) => e.toString())
+          .toList(),
+    );
+  }
+
+  final String requestId;
+  final String crop;
+  final double quantityKg;
+  final TransportRouteOption bestRoute;
+  final List<TransportRouteOption> routeOptions;
+  final double estimatedDistanceKm;
+  final int estimatedDurationMinutes;
+  final double estimatedTransportCost;
+  final String spoilageRisk;
+  final String delayRisk;
+  final List<String> reasonLabels;
+}
+
 class RescueMatch {
   RescueMatch({
     required this.id,

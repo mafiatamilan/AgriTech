@@ -24,6 +24,7 @@ class _VendorHomeScreenState extends ConsumerState<VendorHomeScreen> {
   final _priceController = TextEditingController();
   bool _signedUp = false;
   bool _submitting = false;
+  bool _planningRoute = false;
 
   @override
   void dispose() {
@@ -147,6 +148,47 @@ class _VendorHomeScreenState extends ConsumerState<VendorHomeScreen> {
     }
   }
 
+  Future<void> _planTransport(DemandRequest opportunity) async {
+    final available = opportunity.remainingQuantityKg ?? opportunity.quantityKg;
+    final request = await showDialog<_TransportPlanInput>(
+      context: context,
+      builder: (context) => _TransportPlanDialog(
+        opportunity: opportunity,
+        defaultQuantityKg: available,
+      ),
+    );
+    if (!mounted || request == null) return;
+
+    setState(() => _planningRoute = true);
+    try {
+      final recommendation = await ref
+          .read(backendProvider)
+          .vendorPlanRoute(
+            requestId: opportunity.id,
+            pickupLatitude: request.pickupLatitude,
+            pickupLongitude: request.pickupLongitude,
+            deliveryLatitude: request.deliveryLatitude,
+            deliveryLongitude: request.deliveryLongitude,
+            quantityKg: request.quantityKg,
+            vehicleType: request.vehicleType,
+            vehicleCapacityKg: request.vehicleCapacityKg,
+            transportCostPerKm: request.transportCostPerKm,
+            refrigerated: request.refrigerated,
+            shelfLifeHours: request.shelfLifeHours,
+          );
+      if (!mounted) return;
+      await showDialog<void>(
+        context: context,
+        builder: (context) =>
+            _TransportRecommendationDialog(recommendation: recommendation),
+      );
+    } on Exception catch (e) {
+      if (mounted) showError(context, e);
+    } finally {
+      if (mounted) setState(() => _planningRoute = false);
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context);
@@ -261,7 +303,11 @@ class _VendorHomeScreenState extends ConsumerState<VendorHomeScreen> {
                   style: Theme.of(context).textTheme.titleMedium,
                 ),
               ),
-              _VendorOpportunitiesList(onAccept: _accept),
+              _VendorOpportunitiesList(
+                planningRoute: _planningRoute,
+                onAccept: _accept,
+                onPlanTransport: _planTransport,
+              ),
               const SizedBox(height: 16),
             ],
           ),
@@ -278,9 +324,15 @@ class _VendorHomeScreenState extends ConsumerState<VendorHomeScreen> {
 }
 
 class _VendorOpportunitiesList extends ConsumerWidget {
-  const _VendorOpportunitiesList({required this.onAccept});
+  const _VendorOpportunitiesList({
+    required this.planningRoute,
+    required this.onAccept,
+    required this.onPlanTransport,
+  });
 
+  final bool planningRoute;
   final Future<void> Function(DemandRequest opportunity) onAccept;
+  final Future<void> Function(DemandRequest opportunity) onPlanTransport;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -316,7 +368,9 @@ class _VendorOpportunitiesList extends ConsumerWidget {
                   for (final o in realOps)
                     _OpportunityTile(
                       opportunity: o,
+                      planningRoute: planningRoute,
                       onAccept: () => onAccept(o),
+                      onPlanTransport: () => onPlanTransport(o),
                     ),
                 ],
               );
@@ -494,11 +548,408 @@ class _ProfileDetailRow extends StatelessWidget {
   }
 }
 
-class _OpportunityTile extends StatelessWidget {
-  const _OpportunityTile({required this.opportunity, required this.onAccept});
+class _TransportPlanInput {
+  _TransportPlanInput({
+    required this.pickupLatitude,
+    required this.pickupLongitude,
+    required this.deliveryLatitude,
+    required this.deliveryLongitude,
+    required this.quantityKg,
+    required this.vehicleType,
+    required this.vehicleCapacityKg,
+    required this.transportCostPerKm,
+    required this.refrigerated,
+    this.shelfLifeHours,
+  });
+
+  final double pickupLatitude;
+  final double pickupLongitude;
+  final double deliveryLatitude;
+  final double deliveryLongitude;
+  final double quantityKg;
+  final String vehicleType;
+  final double vehicleCapacityKg;
+  final double transportCostPerKm;
+  final bool refrigerated;
+  final double? shelfLifeHours;
+}
+
+class _TransportPlanDialog extends StatefulWidget {
+  const _TransportPlanDialog({
+    required this.opportunity,
+    required this.defaultQuantityKg,
+  });
 
   final DemandRequest opportunity;
+  final double? defaultQuantityKg;
+
+  @override
+  State<_TransportPlanDialog> createState() => _TransportPlanDialogState();
+}
+
+class _TransportPlanDialogState extends State<_TransportPlanDialog> {
+  final _formKey = GlobalKey<FormState>();
+  late final TextEditingController _pickupLat;
+  late final TextEditingController _pickupLon;
+  late final TextEditingController _deliveryLat;
+  late final TextEditingController _deliveryLon;
+  late final TextEditingController _quantity;
+  late final TextEditingController _capacity;
+  late final TextEditingController _costPerKm;
+  late final TextEditingController _shelfLife;
+  String _vehicleType = 'small_truck';
+  bool _refrigerated = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _pickupLat = TextEditingController();
+    _pickupLon = TextEditingController();
+    _deliveryLat = TextEditingController();
+    _deliveryLon = TextEditingController();
+    _quantity = TextEditingController(
+      text: widget.defaultQuantityKg == null
+          ? ''
+          : widget.defaultQuantityKg!.toStringAsFixed(2),
+    );
+    _capacity = TextEditingController(text: '1000');
+    _costPerKm = TextEditingController(text: '15');
+    _shelfLife = TextEditingController(
+      text: widget.opportunity.shelfLifeDays == null
+          ? ''
+          : (widget.opportunity.shelfLifeDays! * 24).toString(),
+    );
+  }
+
+  @override
+  void dispose() {
+    _pickupLat.dispose();
+    _pickupLon.dispose();
+    _deliveryLat.dispose();
+    _deliveryLon.dispose();
+    _quantity.dispose();
+    _capacity.dispose();
+    _costPerKm.dispose();
+    _shelfLife.dispose();
+    super.dispose();
+  }
+
+  double? _readPositive(TextEditingController controller) {
+    final value = double.tryParse(controller.text.trim());
+    if (value == null || value <= 0) return null;
+    return value;
+  }
+
+  double? _readCoordinate(TextEditingController controller) {
+    return double.tryParse(controller.text.trim());
+  }
+
+  void _submit() {
+    if (!_formKey.currentState!.validate()) return;
+    Navigator.of(context).pop(
+      _TransportPlanInput(
+        pickupLatitude: _readCoordinate(_pickupLat)!,
+        pickupLongitude: _readCoordinate(_pickupLon)!,
+        deliveryLatitude: _readCoordinate(_deliveryLat)!,
+        deliveryLongitude: _readCoordinate(_deliveryLon)!,
+        quantityKg: _readPositive(_quantity)!,
+        vehicleType: _vehicleType,
+        vehicleCapacityKg: _readPositive(_capacity)!,
+        transportCostPerKm: _readPositive(_costPerKm)!,
+        refrigerated: _refrigerated,
+        shelfLifeHours: _shelfLife.text.trim().isEmpty
+            ? null
+            : _readPositive(_shelfLife),
+      ),
+    );
+  }
+
+  String? _validateCoordinate(String? value) {
+    final parsed = double.tryParse(value?.trim() ?? '');
+    return parsed == null ? 'Enter a valid number' : null;
+  }
+
+  String? _validatePositive(String? value) {
+    final parsed = double.tryParse(value?.trim() ?? '');
+    return parsed == null || parsed <= 0 ? 'Enter a value above 0' : null;
+  }
+
+  String? _validateOptionalPositive(String? value) {
+    if (value == null || value.trim().isEmpty) return null;
+    return _validatePositive(value);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AlertDialog(
+      title: Text('Plan transport for ${widget.opportunity.cropName}'),
+      content: SingleChildScrollView(
+        child: Form(
+          key: _formKey,
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              TextFormField(
+                controller: _pickupLat,
+                keyboardType: const TextInputType.numberWithOptions(
+                  decimal: true,
+                  signed: true,
+                ),
+                decoration: const InputDecoration(labelText: 'Pickup latitude'),
+                validator: _validateCoordinate,
+              ),
+              TextFormField(
+                controller: _pickupLon,
+                keyboardType: const TextInputType.numberWithOptions(
+                  decimal: true,
+                  signed: true,
+                ),
+                decoration: const InputDecoration(
+                  labelText: 'Pickup longitude',
+                ),
+                validator: _validateCoordinate,
+              ),
+              const SizedBox(height: 8),
+              TextFormField(
+                controller: _deliveryLat,
+                keyboardType: const TextInputType.numberWithOptions(
+                  decimal: true,
+                  signed: true,
+                ),
+                decoration: const InputDecoration(
+                  labelText: 'Delivery latitude',
+                ),
+                validator: _validateCoordinate,
+              ),
+              TextFormField(
+                controller: _deliveryLon,
+                keyboardType: const TextInputType.numberWithOptions(
+                  decimal: true,
+                  signed: true,
+                ),
+                decoration: const InputDecoration(
+                  labelText: 'Delivery longitude',
+                ),
+                validator: _validateCoordinate,
+              ),
+              const SizedBox(height: 8),
+              DropdownButtonFormField<String>(
+                initialValue: _vehicleType,
+                decoration: const InputDecoration(labelText: 'Vehicle type'),
+                items: const [
+                  DropdownMenuItem(
+                    value: 'small_truck',
+                    child: Text('Small truck'),
+                  ),
+                  DropdownMenuItem(
+                    value: 'large_truck',
+                    child: Text('Large truck'),
+                  ),
+                  DropdownMenuItem(
+                    value: 'refrigerated_van',
+                    child: Text('Refrigerated van'),
+                  ),
+                  DropdownMenuItem(
+                    value: 'reefer_truck',
+                    child: Text('Reefer truck'),
+                  ),
+                ],
+                onChanged: (value) {
+                  if (value != null) setState(() => _vehicleType = value);
+                },
+              ),
+              SwitchListTile(
+                contentPadding: EdgeInsets.zero,
+                title: const Text('Refrigerated transport'),
+                value: _refrigerated,
+                onChanged: (value) => setState(() => _refrigerated = value),
+              ),
+              TextFormField(
+                controller: _quantity,
+                keyboardType: const TextInputType.numberWithOptions(
+                  decimal: true,
+                ),
+                decoration: const InputDecoration(labelText: 'Quantity (kg)'),
+                validator: _validatePositive,
+              ),
+              TextFormField(
+                controller: _capacity,
+                keyboardType: const TextInputType.numberWithOptions(
+                  decimal: true,
+                ),
+                decoration: const InputDecoration(
+                  labelText: 'Vehicle capacity (kg)',
+                ),
+                validator: _validatePositive,
+              ),
+              TextFormField(
+                controller: _costPerKm,
+                keyboardType: const TextInputType.numberWithOptions(
+                  decimal: true,
+                ),
+                decoration: const InputDecoration(labelText: 'Cost per km'),
+                validator: _validatePositive,
+              ),
+              TextFormField(
+                controller: _shelfLife,
+                keyboardType: const TextInputType.numberWithOptions(
+                  decimal: true,
+                ),
+                decoration: const InputDecoration(
+                  labelText: 'Remaining shelf life (hours, optional)',
+                ),
+                validator: _validateOptionalPositive,
+              ),
+            ],
+          ),
+        ),
+      ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.of(context).pop(),
+          child: const Text('Cancel'),
+        ),
+        FilledButton.icon(
+          onPressed: _submit,
+          icon: const Icon(Icons.local_shipping_outlined),
+          label: const Text('Plan route'),
+        ),
+      ],
+    );
+  }
+}
+
+class _TransportRecommendationDialog extends StatelessWidget {
+  const _TransportRecommendationDialog({required this.recommendation});
+
+  final TransportRouteRecommendation recommendation;
+
+  @override
+  Widget build(BuildContext context) {
+    final best = recommendation.bestRoute;
+    return AlertDialog(
+      title: const Text('Transport recommendation'),
+      content: SingleChildScrollView(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              recommendation.crop,
+              style: Theme.of(context).textTheme.titleMedium,
+            ),
+            const SizedBox(height: 8),
+            _TransportMetric(label: 'Best route', value: best.label),
+            _TransportMetric(
+              label: 'Distance',
+              value:
+                  '${recommendation.estimatedDistanceKm.toStringAsFixed(1)} km',
+            ),
+            _TransportMetric(
+              label: 'Duration',
+              value: '${recommendation.estimatedDurationMinutes} min',
+            ),
+            _TransportMetric(
+              label: 'Cost',
+              value: money(recommendation.estimatedTransportCost),
+            ),
+            _TransportMetric(
+              label: 'Spoilage risk',
+              value: recommendation.spoilageRisk,
+            ),
+            _TransportMetric(
+              label: 'Delay risk',
+              value: recommendation.delayRisk,
+            ),
+            _TransportMetric(
+              label: 'Capacity',
+              value: best.vehicleCapacityFit ? 'Fits vehicle' : 'Too large',
+            ),
+            if (recommendation.reasonLabels.isNotEmpty) ...[
+              const SizedBox(height: 12),
+              Text('Reasons', style: Theme.of(context).textTheme.titleSmall),
+              for (final reason in recommendation.reasonLabels)
+                Padding(
+                  padding: const EdgeInsets.only(top: 4),
+                  child: Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const Text('• '),
+                      Expanded(child: Text(reason)),
+                    ],
+                  ),
+                ),
+            ],
+            if (recommendation.routeOptions.length > 1) ...[
+              const SizedBox(height: 12),
+              Text(
+                'Other options',
+                style: Theme.of(context).textTheme.titleSmall,
+              ),
+              for (final option in recommendation.routeOptions.skip(1))
+                ListTile(
+                  dense: true,
+                  contentPadding: EdgeInsets.zero,
+                  title: Text(option.label),
+                  subtitle: Text(
+                    '${option.distanceKm.toStringAsFixed(1)} km · '
+                    '${option.estimatedTimeHours.toStringAsFixed(1)} h · '
+                    '${money(option.estimatedTransportCost)}',
+                  ),
+                ),
+            ],
+          ],
+        ),
+      ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.of(context).pop(),
+          child: const Text('Close'),
+        ),
+      ],
+    );
+  }
+}
+
+class _TransportMetric extends StatelessWidget {
+  const _TransportMetric({required this.label, required this.value});
+
+  final String label;
+  final String value;
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.only(top: 6),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          SizedBox(
+            width: 105,
+            child: Text(
+              label,
+              style: const TextStyle(fontWeight: FontWeight.w600),
+            ),
+          ),
+          Expanded(child: Text(value)),
+        ],
+      ),
+    );
+  }
+}
+
+class _OpportunityTile extends StatelessWidget {
+  const _OpportunityTile({
+    required this.opportunity,
+    required this.planningRoute,
+    required this.onAccept,
+    required this.onPlanTransport,
+  });
+
+  final DemandRequest opportunity;
+  final bool planningRoute;
   final VoidCallback onAccept;
+  final VoidCallback onPlanTransport;
 
   @override
   Widget build(BuildContext context) {
@@ -530,11 +981,33 @@ class _OpportunityTile extends StatelessWidget {
                 label: Text(farmerName),
               ),
             ),
+            Wrap(
+              spacing: 8,
+              runSpacing: 8,
+              children: [
+                FilledButton.tonalIcon(
+                  onPressed:
+                      available == null || available <= 0 || planningRoute
+                      ? null
+                      : onPlanTransport,
+                  icon: planningRoute
+                      ? const SizedBox(
+                          width: 16,
+                          height: 16,
+                          child: CircularProgressIndicator(strokeWidth: 2),
+                        )
+                      : const Icon(Icons.local_shipping_outlined),
+                  label: const Text('Plan route'),
+                ),
+                FilledButton.tonal(
+                  onPressed: available == null || available <= 0
+                      ? null
+                      : onAccept,
+                  child: Text(l10n.vendorAccept),
+                ),
+              ],
+            ),
           ],
-        ),
-        trailing: FilledButton.tonal(
-          onPressed: available == null || available <= 0 ? null : onAccept,
-          child: Text(l10n.vendorAccept),
         ),
       ),
     );
