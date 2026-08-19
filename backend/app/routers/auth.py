@@ -34,28 +34,50 @@ class FarmerProfile(BaseModel):
     area_locality: str | None = None
 
 
+def _find_user_by_email(sb, email: str):
+    users = sb.auth.admin.list_users()
+    user_list = getattr(users, "users", users)
+    for user in user_list:
+        if getattr(user, "email", None) == email:
+            return user
+    return None
+
+
 @router.post("/signup", response_model=AuthResponse)
 async def signup(req: SignupRequest):
     sb = get_supabase()
     try:
-        resp = sb.auth.sign_up({"email": req.email, "password": req.password})
-        if not resp.user:
+        try:
+            resp = sb.auth.admin.create_user({
+                "email": req.email,
+                "password": req.password,
+                "email_confirm": True,
+            })
+            user = resp.user
+        except Exception:
+            existing_user = _find_user_by_email(sb, req.email)
+            if not existing_user:
+                raise
+            sb.auth.admin.update_user_by_id(existing_user.id, {
+                "password": req.password,
+                "email_confirm": True,
+            })
+            user = existing_user
+        if not user:
             raise HTTPException(status_code=400, detail="Signup failed")
-        sb.table("farmers").insert({
-            "id": resp.user.id,
+        sb.table("farmers").upsert({
+            "id": user.id,
             "name": req.name,
             "phone": req.phone,
             "email": req.email,
         }).execute()
-        if not resp.session:
-            raise HTTPException(
-                status_code=400,
-                detail="Signup succeeded, but email confirmation is required before login",
-            )
+        login_resp = sb.auth.sign_in_with_password({"email": req.email, "password": req.password})
+        if not login_resp.session:
+            raise HTTPException(status_code=401, detail="Signup created user, but login failed")
         return AuthResponse(
-            access_token=resp.session.access_token,
-            refresh_token=resp.session.refresh_token,
-            user_id=resp.user.id,
+            access_token=login_resp.session.access_token,
+            refresh_token=login_resp.session.refresh_token,
+            user_id=user.id,
         )
     except HTTPException:
         raise
