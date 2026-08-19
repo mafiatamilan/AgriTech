@@ -20,9 +20,9 @@ jobs:
       - name: Install uv
         run: pip install uv
       - name: Install dependencies
-        run: uv sync
+        run: uv pip install -r requirements.txt pytest
       - name: Run tests
-        run: uv run pytest tests/ -v
+        run: python -m pytest tests/ -v
 
   flutter-analyze:
     runs-on: ubuntu-latest
