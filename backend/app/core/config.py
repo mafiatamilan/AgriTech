@@ -18,10 +18,9 @@ class Settings(BaseSettings):
     LLM_PROVIDER: str = ""
     LLM_MODEL: str = "nemotron-3-ultra-free"
 
-    # Plant disease model provider: pddd, roboflow, or auto
-    PLANT_DISEASE_PROVIDER: str = "auto"
-    PDDD_MODEL_PATH: str = "models/mobilenet_v3_large-model-84.pth"
-    PDDD_LABELS_PATH: str = "models/class_indices.json"
+    # Plant disease model provider: vit, roboflow, or auto
+    PLANT_DISEASE_PROVIDER: str = "vit"
+    VIT_MODEL_NAME: str = "wambugu71/crop_leaf_diseases_vit"
 
     # Impact metric constants (demo factors — configurable, never magic numbers)
     PUMP_FLOW_LITERS_PER_MIN: float = 40.0

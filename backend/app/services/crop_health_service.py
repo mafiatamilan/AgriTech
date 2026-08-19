@@ -68,7 +68,7 @@ async def run_crop_health(
         "prevention": list(diag.prevention),
         "retake_image": diag.retake_image,
         "reason_labels": list(diag.reason_labels),
-        "model_source": "plantvillage-static" if model_name == "StaticPlantVillageModelAdapter" else "pddd",
+        "model_source": "vit" if model_name == "ViTPlantDiseaseModelAdapter" else "static",
         "model_name": model_name,
         "model_version": "1",
     }).execute()
@@ -89,10 +89,28 @@ async def run_crop_health(
 
 async def run_yield_analysis(
     sb, image_id: str, farm_id: str, image_url: str, crop_hint: str | None,
-    agent_run_id: str | None = None,
+    agent_run_id: str | None = None, disease_info: dict | None = None,
 ) -> dict:
     from app.agents.yield_prediction import run_yield_prediction
-    result = await run_yield_prediction(image_url, [], crop_hint=crop_hint)
+    from app.services.weather_service import get_weather_snapshot
+
+    # Fetch weather data for the farm
+    weather_data = None
+    try:
+        farm_resp = sb.table("farms").select("latitude, longitude").eq("id", farm_id).execute()
+        if farm_resp.data:
+            farm = farm_resp.data[0]
+            weather_data = await get_weather_snapshot(
+                sb, farm_id=farm_id, crop=crop_hint,
+                farm_lat=farm.get("latitude"), farm_lon=farm.get("longitude"),
+            )
+    except Exception as exc:
+        logger.warning("Could not fetch weather for yield prediction: %s", exc)
+
+    result = await run_yield_prediction(
+        image_url, crop_hint=crop_hint, disease_info=disease_info,
+        weather_data=weather_data,
+    )
 
     sb.table("agent_results").insert({
         "crop_image_id": image_id,
@@ -100,7 +118,7 @@ async def run_yield_analysis(
         "farm_id": farm_id,
         "agent_type": "yield",
         "result_json": result,
-        "model_name": "YieldPredictionStub",
+        "model_name": "YieldHeuristicIndia",
         "model_version": "1",
         "agent_run_id": agent_run_id,
     }).execute()
@@ -111,7 +129,7 @@ async def run_yield_analysis(
         "forecast_date": date.today().isoformat(),
         "expected_yield": result["expected_yield_kg"],
         "confidence": None,
-        "model_name": "YieldPredictionStub",
+        "model_name": "YieldHeuristicIndia",
         "model_version": "1",
         "risk_factors": result.get("risk_factors", []),
         "agent_run_id": agent_run_id,
@@ -123,33 +141,20 @@ async def run_yield_analysis(
 def _build_model_adapter(agri):
     """Build the disease model adapter from PLANT_DISEASE_PROVIDER config.
 
-    pddd → PDDD PyTorch MobileNet checkpoint (paths resolved against repo root).
-    roboflow → Roboflow hosted API.
+    vit → HuggingFace ViT model (default: wambugu71/crop_leaf_diseases_vit).
     auto/anything else → static demo adapter.
     Falls back to the static adapter if the selected provider cannot load.
     """
     settings = get_settings()
     provider = (settings.PLANT_DISEASE_PROVIDER or "auto").lower()
 
-    if provider == "pddd":
-        root = Path(__file__).resolve().parents[3]  # repo root
-        agents_dir = root / "agents"
-        model_path = agents_dir / settings.PDDD_MODEL_PATH
-        labels_path = agents_dir / settings.PDDD_LABELS_PATH
-        if not model_path.exists():
-            model_path = Path(settings.PDDD_MODEL_PATH)
-        if not labels_path.exists():
-            labels_path = Path(settings.PDDD_LABELS_PATH)
-        if model_path.exists() and labels_path.exists():
-            try:
-                return agri.PDDDPlantDiseaseModelAdapter(
-                    str(model_path), str(labels_path)
-                ), "PDDDPlantDiseaseModelAdapter"
-            except Exception:
-                pass  # torch missing / load failure → fall through to static
-
-    if provider == "roboflow":
-        return agri.RoboflowPlantVillageModelAdapter(), "RoboflowPlantVillageModelAdapter"
+    if provider == "vit":
+        try:
+            return agri.ViTPlantDiseaseModelAdapter(
+                model_name=settings.VIT_MODEL_NAME,
+            ), "ViTPlantDiseaseModelAdapter"
+        except Exception:
+            pass  # transformers missing / download failure → fall through
 
     return agri.StaticPlantVillageModelAdapter(
         label="Corn___Northern_Leaf_Blight", confidence=0.92
@@ -169,6 +174,7 @@ def _health_result_from_diagnosis(diag) -> dict:
         "crop": diag.crop,
         "disease": diag.disease if not diag.is_healthy else "healthy",
         "diseases_detected": diseases,
+        "is_healthy": diag.is_healthy,
         "confidence_level": diag.confidence_level.value,
         "severity": diag.severity,
         "recommendation": diag.recommendation,

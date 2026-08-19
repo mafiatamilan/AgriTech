@@ -32,7 +32,7 @@ async def answer(messages: list[dict], farm_context: dict) -> str:
     url = f"{base_url.rstrip('/')}/chat/completions"
     logger.info("LLM request -> %s model=%s messages=%d", url, model, len(llm_messages))
     try:
-        async with httpx.AsyncClient(timeout=60) as client:
+        async with httpx.AsyncClient(timeout=120) as client:
             resp = await client.post(
                 url,
                 headers={"Authorization": f"Bearer {api_key}"},

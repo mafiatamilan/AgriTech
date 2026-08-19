@@ -48,7 +48,7 @@ async def _run_analysis(image_id: str, farm_id: str, image_url: str, crop_hint: 
     sb = get_supabase_admin()
     try:
         health = await _run_disease(sb, image_id, farm_id, image_url, crop_hint)
-        await _run_yield(sb, image_id, farm_id, image_url, crop_hint)
+        await _run_yield(sb, image_id, farm_id, image_url, crop_hint, disease_info=health)
 
         sb.table("crop_images").update({"analysis_status": "done"}).eq("id", image_id).execute()
 
@@ -72,9 +72,9 @@ async def _run_disease(sb, image_id: str, farm_id: str, image_url: str, crop_hin
     return await run_crop_health(sb, image_id, farm_id, image_url, crop_hint)
 
 
-async def _run_yield(sb, image_id: str, farm_id: str, image_url: str, crop_hint: str | None) -> dict:
+async def _run_yield(sb, image_id: str, farm_id: str, image_url: str, crop_hint: str | None, disease_info: dict | None = None) -> dict:
     from app.services.crop_health_service import run_yield_analysis
-    return await run_yield_analysis(sb, image_id, farm_id, image_url, crop_hint)
+    return await run_yield_analysis(sb, image_id, farm_id, image_url, crop_hint, disease_info=disease_info)
 
 
 @router.get("/{crop_image_id}/status")

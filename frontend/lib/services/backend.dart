@@ -98,11 +98,15 @@ class Backend {
   // ---- upload ----
   Future<CropImageUpload> uploadCropImage(
     String farmId,
-    File file,
-  ) async {
+    File file, {
+    String? cropHint,
+  }) async {
     final json = await _api.postMultipart(
       '/upload/crop-image',
-      fields: {'farm_id': farmId},
+      fields: {
+        'farm_id': farmId,
+        if (cropHint != null) 'crop_hint': cropHint,
+      },
       fileField: 'file',
       file: file,
     );
@@ -117,7 +121,7 @@ class Backend {
   // ---- chat ----
   Future<String> createChatSession(String? farmId) async {
     final json = await _api.post('/chat/sessions',
-        body: {'farm_id': ?farmId});
+        body: {'farm_id': farmId});
     final id = (json as Map<String, dynamic>)['id'];
     return id as String;
   }
@@ -130,11 +134,12 @@ class Backend {
     final json = image != null
         ? await _api.postMultipart(
             '/chat/sessions/$sessionId/messages',
-            fields: {'content': ?content},
+            fields: {'content': content ?? ''},
             fileField: 'image',
             file: image,
+            longTimeout: true,
           )
-        : await _api.post('/chat/sessions/$sessionId/messages',
+        : await _api.postLong('/chat/sessions/$sessionId/messages',
             body: {'content': content});
     return ChatMessage.fromJson(json as Map<String, dynamic>);
   }
@@ -171,7 +176,7 @@ class Backend {
 
   Future<void> updateAccount({String? phone, String? name}) =>
       _api.patch('/account',
-          body: {'phone': ?phone, 'name': ?name});
+          body: {'phone': phone, 'name': name});
 
   Future<WaterSaved> getWaterSaved() async {
     final json = await _api.get('/account/water-saved');

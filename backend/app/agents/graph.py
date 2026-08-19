@@ -89,11 +89,18 @@ async def yield_node(state: FarmAgentState) -> dict:
     image = state.get("image_ctx")
     if not image:
         return {"results": [{"agent": "yield", "output": None, "status": "skipped"}]}
+    # Get disease info from crop_health results if available
+    disease_info = None
+    for r in state.get("results", []):
+        if r.get("agent") == "crop_health" and r.get("status") == "success":
+            disease_info = r.get("output")
+            break
     from app.services.crop_health_service import run_yield_analysis
     try:
         out = await run_yield_analysis(
             state["sb"], image["image_id"], state["farm_id"], image["image_url"],
             image.get("crop_hint"), agent_run_id=state.get("agent_run_id"),
+            disease_info=disease_info,
         )
     except Exception as exc:
         return {"errors": [f"yield: {exc}"],
@@ -188,8 +195,10 @@ def build_graph():
     graph.add_node("impact", impact_node)
 
     graph.add_edge(START, "collect_context")
-    for node in ("irrigation", "crop_health", "yield", "inventory", "demand_matching", "next_season"):
+    for node in ("irrigation", "crop_health", "inventory", "demand_matching", "next_season"):
         graph.add_edge("collect_context", node)
+    graph.add_edge("collect_context", "yield")
+    graph.add_edge("crop_health", "yield")  # yield waits for disease info
     for node in ("irrigation", "crop_health", "yield", "inventory", "demand_matching", "next_season"):
         graph.add_edge(node, "supervisor")
     graph.add_edge("supervisor", "impact")
