@@ -201,11 +201,7 @@ async def test_create_vendor_request():
         "vendor_id": "vendor-1",
         "crop_name": "Maize",
     }])
-    mock_sb._tables["user_profiles"] = MockTable([{
-        "auth_user_id": "vendor-1",
-        "role": "VENDOR",
-        "verification_status": "IDENTITY_VERIFIED",
-    }])
+    mock_sb._tables["vendors"] = MockTable([{"id": "vendor-1"}])
 
     def _get_sb():
         return mock_sb

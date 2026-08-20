@@ -3,10 +3,10 @@ from pydantic import BaseModel
 from app.core.deps import get_current_farmer
 from app.db.supabase_client import get_supabase
 from app.models.market import DemandRequestCreate, CropMatchResponse
-from app.models.verification import UserRole
+from app.models.account import UserRole
 from app.agents.demand_matching import run_demand_matching
 from app.services.notification_service import create_notification
-from app.services.identity_verification_service import require_verified_role
+from app.services.account_service import require_account_role
 
 router = APIRouter(prefix="/market", tags=["market"])
 
@@ -89,7 +89,7 @@ def _existing_buyer_ids(sb, request_id: str) -> set[str]:
 async def _refresh_matches_for_request(sb, request: dict) -> list[dict]:
     existing_ids = _existing_buyer_ids(sb, request["id"])
     matches = []
-    for match in await run_demand_matching(request, sb):
+    for match in (await run_demand_matching(request, sb))[:3]:
         buyer_id = match.get("buyer_farmer_id")
         if buyer_id and buyer_id in existing_ids:
             continue
@@ -122,7 +122,7 @@ async def crop_match(
     current_farmer: dict = Depends(get_current_farmer),
 ):
     sb = get_supabase()
-    require_verified_role(sb, user_id=current_farmer["id"], role=UserRole.farmer)
+    require_account_role(sb, user_id=current_farmer["id"], role=UserRole.farmer)
 
     # Try to get shelf life from inventory_statuses (actual agent data)
     shelf_life_days = req.shelf_life_days

@@ -3,8 +3,8 @@ from pydantic import BaseModel, Field
 from datetime import datetime
 from app.core.deps import get_current_farmer
 from app.db.supabase_client import get_supabase
-from app.models.verification import UserRole
-from app.services.identity_verification_service import require_verified_role
+from app.models.account import UserRole
+from app.services.account_service import require_account_role
 from app.services.notification_service import create_notification
 from app.agents.transport_routing import (
     TransportOrder,
@@ -124,7 +124,7 @@ async def create_vendor_request(
     current_farmer: dict = Depends(get_current_farmer),
 ):
     sb = get_supabase()
-    require_verified_role(sb, user_id=current_farmer["id"], role=UserRole.vendor)
+    require_account_role(sb, user_id=current_farmer["id"], role=UserRole.vendor)
 
     # Verify caller is a vendor
     vendor = sb.table("vendors").select("id").eq("id", current_farmer["id"]).execute()
@@ -497,7 +497,7 @@ async def accept_opportunity(
     current_farmer: dict = Depends(get_current_farmer),
 ):
     sb = get_supabase()
-    require_verified_role(sb, user_id=current_farmer["id"], role=UserRole.vendor)
+    require_account_role(sb, user_id=current_farmer["id"], role=UserRole.vendor)
 
     vendor = sb.table("vendors") \
         .select("business_name, contact_phone, contact_email, address") \

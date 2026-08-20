@@ -44,9 +44,6 @@ class FarmerProfile {
     this.role,
     this.state,
     this.district,
-    this.verificationStatus = 'UNVERIFIED',
-    this.verificationBadge,
-    this.demoVerificationMode = false,
   });
 
   factory FarmerProfile.fromJson(Map<String, dynamic> json) => FarmerProfile(
@@ -60,9 +57,6 @@ class FarmerProfile {
     role: json['role'] as String?,
     state: json['state'] as String?,
     district: json['district'] as String?,
-    verificationStatus: json['verification_status'] as String? ?? 'UNVERIFIED',
-    verificationBadge: json['verification_badge'] as String?,
-    demoVerificationMode: json['demo_verification_mode'] == true,
   );
 
   final String id;
@@ -75,13 +69,6 @@ class FarmerProfile {
   final String? role;
   final String? state;
   final String? district;
-  final String verificationStatus;
-  final String? verificationBadge;
-  final bool demoVerificationMode;
-
-  bool get isIdentityVerified => verificationStatus == 'IDENTITY_VERIFIED';
-  bool get isVerifiedFarmer => verificationBadge == 'VERIFIED_FARMER';
-  bool get isVerifiedVendor => verificationBadge == 'VERIFIED_VENDOR';
 }
 
 class AuthResponse {
@@ -100,72 +87,6 @@ class AuthResponse {
   final String accessToken;
   final String refreshToken;
   final String userId;
-}
-
-class VerificationResponse {
-  VerificationResponse({
-    required this.status,
-    required this.message,
-    this.verificationId,
-    this.maskedIdentifier,
-    this.demoMode = false,
-    this.badge,
-  });
-
-  factory VerificationResponse.fromJson(Map<String, dynamic> json) =>
-      VerificationResponse(
-        status: json['status']?.toString() ?? '',
-        message: json['message']?.toString() ?? '',
-        verificationId: json['verification_id'] as String?,
-        maskedIdentifier: json['masked_identifier'] as String?,
-        demoMode: json['demo_mode'] == true,
-        badge: json['badge'] as String?,
-      );
-
-  final String status;
-  final String message;
-  final String? verificationId;
-  final String? maskedIdentifier;
-  final bool demoMode;
-  final String? badge;
-}
-
-class VerificationStatusInfo {
-  VerificationStatusInfo({
-    required this.userId,
-    this.role,
-    required this.verificationStatus,
-    this.badge,
-    this.phoneVerified = false,
-    this.farmerIdVerified = false,
-    this.vendorVerified = false,
-    this.aadhaarVerified = false,
-    this.demoMode = false,
-  });
-
-  factory VerificationStatusInfo.fromJson(Map<String, dynamic> json) =>
-      VerificationStatusInfo(
-        userId: json['user_id'] as String? ?? '',
-        role: json['role'] as String?,
-        verificationStatus:
-            json['verification_status'] as String? ?? 'UNVERIFIED',
-        badge: json['badge'] as String?,
-        phoneVerified: json['phone_verified'] == true,
-        farmerIdVerified: json['farmer_id_verified'] == true,
-        vendorVerified: json['vendor_verified'] == true,
-        aadhaarVerified: json['aadhaar_verified'] == true,
-        demoMode: json['demo_mode'] == true,
-      );
-
-  final String userId;
-  final String? role;
-  final String verificationStatus;
-  final String? badge;
-  final bool phoneVerified;
-  final bool farmerIdVerified;
-  final bool vendorVerified;
-  final bool aadhaarVerified;
-  final bool demoMode;
 }
 
 class Farm {

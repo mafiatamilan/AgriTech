@@ -20,13 +20,6 @@ class Settings(BaseSettings):
     WEATHER_API_BASE_URL: str = ""
     FCM_SERVER_KEY: str = ""
 
-    # Identity verification: mock for demos, provider for authorized integrations.
-    IDENTITY_PROVIDER_MODE: str = "mock"
-    OTP_EXPIRY_SECONDS: int = 300
-    OTP_MAX_ATTEMPTS: int = 5
-    OTP_RATE_LIMIT_PER_HOUR: int = 5
-    VERIFICATION_DEMO_OTP: str = "123456"
-
     # Plant disease model provider: vit, roboflow, or auto
     PLANT_DISEASE_PROVIDER: str = "vit"
     VIT_MODEL_NAME: str = "wambugu71/crop_leaf_diseases_vit"

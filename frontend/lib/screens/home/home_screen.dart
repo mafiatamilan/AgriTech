@@ -62,7 +62,6 @@ class HomeScreen extends ConsumerWidget {
             _HomeHero(
               name: ref.watch(authProvider).profile?.name ?? '',
               farmName: farm?.name,
-              badge: ref.watch(authProvider).profile?.verificationBadge,
               onOpenDrawer: onOpenDrawer,
             ),
             if (farmId == null)
@@ -103,13 +102,11 @@ class _HomeHero extends StatelessWidget {
   const _HomeHero({
     required this.name,
     required this.farmName,
-    required this.badge,
     required this.onOpenDrawer,
   });
 
   final String name;
   final String? farmName;
-  final String? badge;
   final VoidCallback onOpenDrawer;
 
   @override
@@ -172,19 +169,6 @@ class _HomeHero extends StatelessWidget {
             ),
           ),
           const SizedBox(height: 6),
-          if (badge != null) ...[
-            Chip(
-              avatar: const Icon(Icons.verified, size: 18),
-              label: Text(
-                badge == 'VERIFIED_VENDOR'
-                    ? 'Verified Buyer'
-                    : 'Verified Farmer',
-              ),
-              backgroundColor: Colors.white,
-              labelStyle: const TextStyle(fontWeight: FontWeight.w800),
-            ),
-            const SizedBox(height: 6),
-          ],
           Text(
             farmName == null
                 ? l10n.homeNoFarm

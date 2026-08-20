@@ -78,11 +78,7 @@ async def test_crop_match_returns_response():
         "demand_request_id": "req-1",
         "matched_buyer_info": {"buyer_name": "Vendor A", "offered_price": 10.0},
     }])
-    mock_sb._tables["user_profiles"] = MockTable([{
-        "auth_user_id": "test-farmer-id",
-        "role": "FARMER",
-        "verification_status": "IDENTITY_VERIFIED",
-    }])
+    mock_sb._tables["farmers"] = MockTable([{"id": "test-farmer-id"}])
 
     def _get_sb():
         return mock_sb

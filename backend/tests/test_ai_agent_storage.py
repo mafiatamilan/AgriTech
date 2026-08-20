@@ -364,6 +364,7 @@ async def test_market_crop_match_strips_match_score():
     assert _strip({"match_score": 0.9, "buyer_name": "x"}) == {"buyer_name": "x"}
 
     sb = get_mock_supabase_admin()
+    _seed(sb, "farmers", [{"id": "farmer-1"}])
     with patch("app.routers.market.get_supabase", lambda: sb):
         with patch("app.routers.market.run_demand_matching", return_value=[
             {"buyer_name": "b1", "match_score": 0.95},

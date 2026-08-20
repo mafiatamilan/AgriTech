@@ -50,7 +50,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
       final accountType = ref.read(accountTypeProvider);
       await ref.read(accountTypeProvider.notifier).setType(accountType);
       if (_isSignup) {
-        await auth.signupWithVerificationStart(
+        await auth.signupWithProfile(
           email: _email.text.trim(),
           password: _password.text,
           accountType: accountType,
@@ -216,8 +216,8 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                     onChanged: null,
                     title: Text(
                       accountType == AccountType.vendor
-                          ? 'I consent to vendor identity verification.'
-                          : 'I consent to farmer identity verification.',
+                          ? 'Create a vendor account.'
+                          : 'Create a farmer account.',
                     ),
                     contentPadding: EdgeInsets.zero,
                   ),

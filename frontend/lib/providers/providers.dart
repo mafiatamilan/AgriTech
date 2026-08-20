@@ -22,7 +22,6 @@ final cacheProvider = Provider<CacheStore>((ref) => CacheStore());
 enum AuthStatus {
   loading,
   needsLogin,
-  needsVerification,
   needsOnboarding,
   ready,
 }
@@ -111,10 +110,7 @@ class AuthController extends Notifier<AuthState> {
     try {
       final accountType = await ref.read(accountTypeProvider.notifier).load();
       final profile = await ref.read(backendProvider).getProfile();
-      final needsVerification = !profile.isIdentityVerified;
-      final nextStatus = needsVerification
-          ? AuthStatus.needsVerification
-          : accountType == AccountType.farmer &&
+      final nextStatus = accountType == AccountType.farmer &&
                 (profile.soilType == null || profile.areaLocality == null)
           ? AuthStatus.needsOnboarding
           : AuthStatus.ready;
@@ -190,7 +186,7 @@ class AuthController extends Notifier<AuthState> {
     }
   }
 
-  Future<void> signupWithVerificationStart({
+  Future<void> signupWithProfile({
     required String email,
     required String password,
     required AccountType accountType,
@@ -204,7 +200,7 @@ class AuthController extends Notifier<AuthState> {
       await ref.read(accountTypeProvider.notifier).setType(accountType);
       final auth = await ref
           .read(backendProvider)
-          .signupStart(
+          .signupWithProfile(
             email: email,
             password: password,
             role: accountType == AccountType.vendor ? 'VENDOR' : 'FARMER',
@@ -212,7 +208,6 @@ class AuthController extends Notifier<AuthState> {
             phone: phone,
             state: stateName,
             district: district,
-            consent: true,
           );
       await supabase.auth.setSession(auth.refreshToken);
       await _loadProfile();
@@ -249,9 +244,6 @@ class AuthController extends Notifier<AuthState> {
               role: profile.role,
               state: profile.state,
               district: profile.district,
-              verificationStatus: profile.verificationStatus,
-              verificationBadge: profile.verificationBadge,
-              demoVerificationMode: profile.demoVerificationMode,
             ),
     );
   }

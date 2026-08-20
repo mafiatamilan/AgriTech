@@ -238,21 +238,12 @@ class _VendorHomeScreenState extends ConsumerState<VendorHomeScreen> {
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context);
     final requests = ref.watch(vendorRequestsProvider);
-    final badge = ref.watch(authProvider).profile?.verificationBadge;
 
     return Scaffold(
       appBar: AppBar(
         leading: Navigator.of(context).canPop() ? const BackButton() : null,
         title: Text(l10n.appTitle),
         actions: [
-          if (badge == 'VERIFIED_VENDOR')
-            const Padding(
-              padding: EdgeInsets.symmetric(vertical: 10),
-              child: Chip(
-                avatar: Icon(Icons.verified, size: 18),
-                label: Text('Verified Buyer'),
-              ),
-            ),
           IconButton(icon: const Icon(Icons.refresh), onPressed: _refresh),
           IconButton(
             icon: const Icon(Icons.logout),

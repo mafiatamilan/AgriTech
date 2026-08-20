@@ -141,8 +141,7 @@ class ApiClient {
     // would retry invalid credentials with the existing session.
     final isPublicAuth =
         path == '/auth/login' ||
-        path == '/auth/signup' ||
-        path == '/auth/signup/start';
+        path == '/auth/signup';
     if (response.statusCode == 401 && !isPublicAuth) {
       // Expired Supabase session — refresh once and retry.
       try {
