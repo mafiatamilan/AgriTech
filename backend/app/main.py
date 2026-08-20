@@ -7,7 +7,7 @@ from app.core.logging_config import setup_logging, get_logger
 from app.routers import (
     auth, farms, motor, market, upload, webhooks,
     recommendations, settings, account, notifications,
-    vendors, chat, inventory, performance, impact,
+    vendors, inventory, performance, impact, verification,
 )
 from app.workers.scheduler import start_scheduler, stop_scheduler
 
@@ -91,10 +91,10 @@ app.include_router(account.router)
 app.include_router(notifications.router)
 app.include_router(webhooks.router)
 app.include_router(vendors.router)
-app.include_router(chat.router)
 app.include_router(inventory.router)
 app.include_router(performance.router)
 app.include_router(impact.router)
+app.include_router(verification.router)
 
 
 @app.get("/health")

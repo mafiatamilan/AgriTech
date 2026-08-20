@@ -11,17 +11,21 @@ class Settings(BaseSettings):
     AGENT_WEBHOOK_SECRET: str = ""
     AGENT_DISPATCH_URL: str = "http://localhost:8000/webhooks/agent-result"
     HARDWARE_COMMAND_SECRET: str = ""
-    USB_RELAY_ENABLED: bool = True
-    USB_RELAY_PORT: str = "/dev/ttyUSB1"
-    USB_RELAY_BAUD_RATE: int = 115200
+    RELAY_ENABLED: bool = True
+    RELAY_PORT: str = "/dev/ttyUSB1"
+    RELAY_BAUD_RATE: int = 115200
     LORA_GATEWAY_STATUS_URL: str = "http://10.33.12.68/status"
     LORA_GATEWAY_TIMEOUT_SECONDS: float = 0.6
     WEATHER_API_KEY: str = ""
     WEATHER_API_BASE_URL: str = ""
-    LLM_API_KEY: str = ""
-    LLM_API_BASE_URL: str = ""
-    LLM_PROVIDER: str = ""
-    LLM_MODEL: str = "nemotron-3-ultra-free"
+    FCM_SERVER_KEY: str = ""
+
+    # Identity verification: mock for demos, provider for authorized integrations.
+    IDENTITY_PROVIDER_MODE: str = "mock"
+    OTP_EXPIRY_SECONDS: int = 300
+    OTP_MAX_ATTEMPTS: int = 5
+    OTP_RATE_LIMIT_PER_HOUR: int = 5
+    VERIFICATION_DEMO_OTP: str = "123456"
 
     # Plant disease model provider: vit, roboflow, or auto
     PLANT_DISEASE_PROVIDER: str = "vit"

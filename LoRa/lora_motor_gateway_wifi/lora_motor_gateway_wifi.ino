@@ -146,7 +146,7 @@ void setupHttpServer() {
   server.begin();
   Serial.println("HTTP server started");
   Serial.println("Test with: curl -X POST http://<gateway-ip>/motor/on");
-  Serial.println("USB test: type ON or OFF and press Enter.");
+  Serial.println("Type ON or OFF and press Enter.");
 }
 
 void handleSerialCommand() {
@@ -165,7 +165,7 @@ void handleSerialCommand() {
     bool ok = dispatchMotorCommand("OFF", false);
     queueLocalStatusReport(ok ? "acked" : "no_ack");
   } else if (command.length() > 0) {
-    Serial.print("Unknown USB command: ");
+    Serial.print("Unknown command: ");
     Serial.println(command);
     Serial.println("Use ON or OFF.");
   }

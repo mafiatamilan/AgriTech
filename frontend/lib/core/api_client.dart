@@ -26,9 +26,8 @@ class ApiClient {
   ApiClient({http.Client? client}) : _client = client ?? http.Client();
 
   final http.Client _client;
-  Uri _uri(String path, [Map<String, String>? query]) => Uri.parse(
-        '${AppConfig.apiBaseUrl}$path',
-      ).replace(queryParameters: query);
+  Uri _uri(String path, [Map<String, String>? query]) =>
+      Uri.parse('${AppConfig.apiBaseUrl}$path').replace(queryParameters: query);
 
   Map<String, String> _headers({bool json = true}) {
     final token = supabase.auth.currentSession?.accessToken;
@@ -38,48 +37,68 @@ class ApiClient {
     };
   }
 
-  Future<dynamic> get(String path, {Map<String, String>? query}) =>
-      _send(() => _client.get(_uri(path, query), headers: _headers()), path: path);
+  Future<dynamic> get(String path, {Map<String, String>? query}) => _send(
+    () => _client.get(_uri(path, query), headers: _headers()),
+    path: path,
+  );
 
-  Future<dynamic> post(String path, {Object? body, Map<String, String>? query}) =>
-      _send(() => _client.post(
-            _uri(path, query),
-            headers: _headers(),
-            body: jsonEncode(body),
-          ), path: path);
+  Future<dynamic> post(
+    String path, {
+    Object? body,
+    Map<String, String>? query,
+  }) => _send(
+    () => _client.post(
+      _uri(path, query),
+      headers: _headers(),
+      body: jsonEncode(body),
+    ),
+    path: path,
+  );
 
-  Future<dynamic> patch(String path, {Object? body, Map<String, String>? query}) =>
-      _send(() => _client.patch(
-            _uri(path, query),
-            headers: _headers(),
-            body: jsonEncode(body),
-          ), path: path);
+  Future<dynamic> patch(
+    String path, {
+    Object? body,
+    Map<String, String>? query,
+  }) => _send(
+    () => _client.patch(
+      _uri(path, query),
+      headers: _headers(),
+      body: jsonEncode(body),
+    ),
+    path: path,
+  );
 
   Future<dynamic> postForm(
     String path, {
     required Map<String, String> fields,
     Map<String, String>? query,
     bool longTimeout = false,
-  }) =>
-      _send(
-        () => _client.post(
-          _uri(path, query),
-          headers: _headers(json: false),
-          body: fields,
-        ),
-        longTimeout: longTimeout,
-        path: path,
-      );
+  }) => _send(
+    () => _client.post(
+      _uri(path, query),
+      headers: _headers(json: false),
+      body: fields,
+    ),
+    longTimeout: longTimeout,
+    path: path,
+  );
 
-  /// POST with extended timeout (for LLM calls).
-  Future<dynamic> postLong(String path, {Object? body, Map<String, String>? query}) =>
-      _send(() => _client.post(
-            _uri(path, query),
-            headers: _headers(),
-            body: jsonEncode(body),
-          ), longTimeout: true, path: path);
+  /// POST with extended timeout for slow backend work.
+  Future<dynamic> postLong(
+    String path, {
+    Object? body,
+    Map<String, String>? query,
+  }) => _send(
+    () => _client.post(
+      _uri(path, query),
+      headers: _headers(),
+      body: jsonEncode(body),
+    ),
+    longTimeout: true,
+    path: path,
+  );
 
-  /// Multipart POST (photo upload, chat messages with image).
+  /// Multipart POST for image upload.
   Future<dynamic> postMultipart(
     String path, {
     required Map<String, String> fields,
@@ -88,21 +107,25 @@ class ApiClient {
     Map<String, String>? query,
     bool longTimeout = false,
   }) {
-    return _send(() async {
-      final request = http.MultipartRequest('POST', _uri(path, query));
-      request.headers.addAll(_headers(json: false));
-      request.fields.addAll(fields);
-      request.files.add(
-        http.MultipartFile(
-          fileField,
-          file.openRead(),
-          file.lengthSync(),
-          filename: file.uri.pathSegments.last,
-        ),
-      );
-      final streamed = await _client.send(request);
-      return http.Response.fromStream(streamed);
-    }, longTimeout: longTimeout, path: path);
+    return _send(
+      () async {
+        final request = http.MultipartRequest('POST', _uri(path, query));
+        request.headers.addAll(_headers(json: false));
+        request.fields.addAll(fields);
+        request.files.add(
+          http.MultipartFile(
+            fileField,
+            file.openRead(),
+            file.lengthSync(),
+            filename: file.uri.pathSegments.last,
+          ),
+        );
+        final streamed = await _client.send(request);
+        return http.Response.fromStream(streamed);
+      },
+      longTimeout: longTimeout,
+      path: path,
+    );
   }
 
   static const _timeout = Duration(seconds: 30);
@@ -116,7 +139,10 @@ class ApiClient {
     var response = await call().timeout(longTimeout ? _longTimeout : _timeout);
     // Login and signup are bootstrap requests; refreshing on their 401s
     // would retry invalid credentials with the existing session.
-    final isPublicAuth = path == '/auth/login' || path == '/auth/signup';
+    final isPublicAuth =
+        path == '/auth/login' ||
+        path == '/auth/signup' ||
+        path == '/auth/signup/start';
     if (response.statusCode == 401 && !isPublicAuth) {
       // Expired Supabase session — refresh once and retry.
       try {

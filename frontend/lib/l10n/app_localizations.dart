@@ -562,12 +562,6 @@ abstract class AppLocalizations {
   /// **'Photo analysis'**
   String get uploadPhotoAnalysis;
 
-  /// No description provided for @uploadChatAgent.
-  ///
-  /// In en, this message translates to:
-  /// **'Chat agent'**
-  String get uploadChatAgent;
-
   /// No description provided for @uploadPickImage.
   ///
   /// In en, this message translates to:
@@ -663,18 +657,6 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Yield estimate'**
   String get uploadYieldEstimate;
-
-  /// No description provided for @uploadAsk.
-  ///
-  /// In en, this message translates to:
-  /// **'Ask about your crop…'**
-  String get uploadAsk;
-
-  /// No description provided for @uploadSend.
-  ///
-  /// In en, this message translates to:
-  /// **'Send'**
-  String get uploadSend;
 
   /// No description provided for @uploadLoading.
   ///

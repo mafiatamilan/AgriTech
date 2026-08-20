@@ -25,35 +25,48 @@ class _MotorScreenState extends ConsumerState<MotorScreen> {
       appBar: AppBar(title: Text(l10n.navMotor)),
       body: farmId == null
           ? Center(child: Text(l10n.homeNoFarm))
-          : ref.watch(motorStatusProvider(farmId)).when(
-              loading: () => const Center(child: CircularProgressIndicator()),
-              error: (e, _) => ErrorView(
-                onRetry: () => ref.invalidate(motorStatusProvider(farmId)),
-              ),
-              data: (result) => ListView(
-                children: [
-                  const FarmSwitcher(),
-                  if (result.fromCache) StaleBanner(savedAt: result.savedAt!),
-                  _StatusCards(status: result.data),
-                  _MoistureCard(status: result.data),
-                  _ActionsCard(
-                    status: result.data,
-                    motorOnBusy: _motorOnBusy,
-                    onStop: () => _action(farmId, l10n.motorStopCurrent,
-                        () => ref.read(backendProvider).stopCurrent(farmId)),
-                    onCancelNext: () => _action(
-                        farmId, l10n.motorCancelNext,
-                        () => ref.read(backendProvider).cancelNext(farmId)),
-                    onMotorOn: () => _motorOn(farmId),
-                    onPairDevice: () => _pairDevice(farmId),
+          : ref
+                .watch(motorStatusProvider(farmId))
+                .when(
+                  loading: () =>
+                      const Center(child: CircularProgressIndicator()),
+                  error: (e, _) => ErrorView(
+                    onRetry: () => ref.invalidate(motorStatusProvider(farmId)),
                   ),
-                ],
-              ),
-            ),
+                  data: (result) => ListView(
+                    children: [
+                      const FarmSwitcher(),
+                      if (result.fromCache)
+                        StaleBanner(savedAt: result.savedAt!),
+                      _StatusCards(status: result.data),
+                      _MoistureCard(status: result.data),
+                      _ActionsCard(
+                        status: result.data,
+                        motorOnBusy: _motorOnBusy,
+                        onStop: () => _action(
+                          farmId,
+                          l10n.motorStopCurrent,
+                          () => ref.read(backendProvider).stopCurrent(farmId),
+                        ),
+                        onCancelNext: () => _action(
+                          farmId,
+                          l10n.motorCancelNext,
+                          () => ref.read(backendProvider).cancelNext(farmId),
+                        ),
+                        onMotorOn: () => _motorOn(farmId),
+                        onPairDevice: () => _pairDevice(farmId),
+                      ),
+                    ],
+                  ),
+                ),
     );
   }
 
-  Future<void> _action(String farmId, String verb, Future<void> Function() call) async {
+  Future<void> _action(
+    String farmId,
+    String verb,
+    Future<void> Function() call,
+  ) async {
     final l10n = AppLocalizations.of(context);
     final confirmed = await showDialog<bool>(
       context: context,
@@ -77,8 +90,9 @@ class _MotorScreenState extends ConsumerState<MotorScreen> {
       await call();
       ref.invalidate(motorStatusProvider(farmId));
       if (mounted) {
-        ScaffoldMessenger.of(context)
-            .showSnackBar(SnackBar(content: Text('$verb ✓')));
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('$verb ✓')));
       }
     } on Exception catch (e) {
       if (mounted) showError(context, e);
@@ -86,16 +100,17 @@ class _MotorScreenState extends ConsumerState<MotorScreen> {
   }
 
   Future<void> _motorOn(String farmId) async {
-    final l10n = AppLocalizations.of(context);
+    final duration = await _promptDurationMinutes();
+    if (duration == null || !mounted) return;
     // The relay flips asynchronously via the hardware command-dispatch path.
     // Show a pending state; the status card flips to ON only once the
     // hardware acknowledges (motor_relay_state / running event).
     setState(() => _motorOnBusy = true);
     try {
-      await ref.read(backendProvider).motorOn(farmId);
+      await ref.read(backendProvider).motorOn(farmId, duration);
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(l10n.motorStarting)),
+          SnackBar(content: Text('Watering for $duration minutes')),
         );
       }
       ref.invalidate(motorStatusProvider(farmId));
@@ -104,6 +119,45 @@ class _MotorScreenState extends ConsumerState<MotorScreen> {
     } finally {
       if (mounted) setState(() => _motorOnBusy = false);
     }
+  }
+
+  Future<int?> _promptDurationMinutes() async {
+    final controller = TextEditingController(text: '10');
+    final value = await showDialog<int>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Set watering time'),
+        content: TextField(
+          controller: controller,
+          autofocus: true,
+          keyboardType: TextInputType.number,
+          decoration: const InputDecoration(
+            labelText: 'Minutes',
+            helperText: 'Motor will stop automatically after this time.',
+          ),
+          onSubmitted: (value) =>
+              Navigator.of(context).pop(int.tryParse(value.trim())),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(),
+            child: const Text('Cancel'),
+          ),
+          FilledButton(
+            onPressed: () =>
+                Navigator.of(context).pop(int.tryParse(controller.text.trim())),
+            child: const Text('Start'),
+          ),
+        ],
+      ),
+    );
+    controller.dispose();
+    if (value == null) return null;
+    if (value < 1 || value > 240) {
+      if (mounted) showError(context, 'Enter a time from 1 to 240 minutes');
+      return null;
+    }
+    return value;
   }
 
   Future<void> _pairDevice(String farmId) async {
@@ -154,9 +208,9 @@ class _MotorScreenState extends ConsumerState<MotorScreen> {
           .pairDevice(farmId, paired.uid, paired.secret);
       ref.invalidate(motorStatusProvider(farmId));
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(l10n.motorPaired)),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text(l10n.motorPaired)));
       }
     } on Exception catch (e) {
       if (mounted) showError(context, e);
@@ -205,16 +259,29 @@ class _StatusCards extends StatelessWidget {
             title: Text(
               isRunning ? l10n.motorRunning : l10n.motorIdle,
               style: isRunning
-                  ? const TextStyle(color: Colors.blue, fontWeight: FontWeight.bold)
+                  ? const TextStyle(
+                      color: Colors.blue,
+                      fontWeight: FontWeight.bold,
+                    )
                   : null,
             ),
             subtitle: status.currentStatus?.startedAt != null
-                ? Text('${l10n.motorRunning} · ${fmtDate(status.currentStatus!.startedAt)}')
+                ? Text(_runningSubtitle(l10n, status.currentStatus!))
                 : null,
           ),
         ],
       ),
     );
+  }
+
+  String _runningSubtitle(AppLocalizations l10n, IrrigationEvent event) {
+    final parts = [
+      '${l10n.motorRunning} · ${fmtDate(event.startedAt)}',
+      if (event.requestedDurationMinutes != null)
+        '${event.requestedDurationMinutes} min',
+      if (event.stopAfter != null) 'stops ${fmtDate(event.stopAfter)}',
+    ];
+    return parts.join(' · ');
   }
 }
 
@@ -232,8 +299,10 @@ class _MoistureCard extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text(l10n.motorSoilMoisture,
-                style: Theme.of(context).textTheme.titleMedium),
+            Text(
+              l10n.motorSoilMoisture,
+              style: Theme.of(context).textTheme.titleMedium,
+            ),
             const SizedBox(height: 8),
             if (status.moistureReadings.isEmpty)
               Text(
@@ -270,7 +339,9 @@ class _ActionsCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context);
     final canStop = status.currentStatus != null;
-    final canCancel = status.nextWatering != null;
+    final canCancel =
+        status.nextWatering != null &&
+        status.nextWateringSource == 'scheduled_event';
     return Card(
       child: Padding(
         padding: const EdgeInsets.all(16),
@@ -281,7 +352,8 @@ class _ActionsCard extends StatelessWidget {
               icon: const Icon(Icons.stop_circle_outlined),
               label: Text(l10n.motorStopCurrent),
               style: OutlinedButton.styleFrom(
-                  minimumSize: const Size.fromHeight(44)),
+                minimumSize: const Size.fromHeight(44),
+              ),
             ),
             const SizedBox(height: 8),
             OutlinedButton.icon(
@@ -289,7 +361,8 @@ class _ActionsCard extends StatelessWidget {
               icon: const Icon(Icons.event_busy),
               label: Text(l10n.motorCancelNext),
               style: OutlinedButton.styleFrom(
-                  minimumSize: const Size.fromHeight(44)),
+                minimumSize: const Size.fromHeight(44),
+              ),
             ),
             const SizedBox(height: 8),
             FilledButton.icon(
@@ -297,7 +370,8 @@ class _ActionsCard extends StatelessWidget {
               icon: const Icon(Icons.power),
               label: Text(l10n.motorOn),
               style: FilledButton.styleFrom(
-                  minimumSize: const Size.fromHeight(44)),
+                minimumSize: const Size.fromHeight(44),
+              ),
             ),
             const SizedBox(height: 8),
             OutlinedButton.icon(
@@ -305,7 +379,8 @@ class _ActionsCard extends StatelessWidget {
               icon: const Icon(Icons.link),
               label: Text(l10n.motorPair),
               style: OutlinedButton.styleFrom(
-                  minimumSize: const Size.fromHeight(44)),
+                minimumSize: const Size.fromHeight(44),
+              ),
             ),
           ],
         ),

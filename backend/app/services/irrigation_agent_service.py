@@ -5,7 +5,7 @@ WaterIrrigationAgent, persists the decision in `irrigation_decisions` +
 `agent_results`, and dispatches a hardware command when watering is required.
 """
 
-from datetime import date, datetime
+from datetime import date, datetime, timedelta
 
 from app.agents.runtime import agents
 from app.services.hardware_service import queue_hardware_command
@@ -138,7 +138,14 @@ async def run_irrigation_decision(
     if decision_label == "water_now":
         event_id = _create_irrigation_event(sb, farm_id, decision.recommended_duration_minutes)
         if device:
-            queue_hardware_command(sb, farm_id, "on", event_id, agent_run_id=agent_run_id)
+            queue_hardware_command(
+                sb,
+                farm_id,
+                "on",
+                event_id,
+                agent_run_id=agent_run_id,
+                duration_minutes=decision.recommended_duration_minutes,
+            )
         if farmer_id:
             await create_notification(
                 sb, farmer_id, "watering",
@@ -151,11 +158,16 @@ async def run_irrigation_decision(
 
 
 def _create_irrigation_event(sb, farm_id: str, duration_minutes: int) -> str | None:
-    now = datetime.utcnow().isoformat()
+    now_dt = datetime.utcnow()
+    now = now_dt.isoformat()
+    stop_after = (now_dt + timedelta(minutes=duration_minutes)).isoformat()
     resp = sb.table("irrigation_events").insert({
         "farm_id": farm_id,
         "scheduled_time": now,
         "started_at": now,
+        "requested_duration_minutes": duration_minutes,
+        "stop_after": stop_after,
+        "source": "agent",
         "status": "running",
     }).execute()
     return resp.data[0]["id"] if resp.data else None

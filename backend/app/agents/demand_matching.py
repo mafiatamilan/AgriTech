@@ -28,6 +28,15 @@ async def run_demand_matching(demand_request: dict, sb=None, agent_run_id: str |
     rows = vr.data or []
     if not rows:
         return []
+    vendor_ids = [row.get("vendor_id") for row in rows if row.get("vendor_id")]
+    verified_vendor_ids: set[str] = set()
+    if vendor_ids:
+        profiles = sb.table("user_profiles").select("auth_user_id, verification_status, role") \
+            .in_("auth_user_id", vendor_ids) \
+            .eq("role", "VENDOR") \
+            .eq("verification_status", "IDENTITY_VERIFIED") \
+            .execute()
+        verified_vendor_ids = {row["auth_user_id"] for row in profiles.data or []}
 
     biz = agents()["business"]
     from business_agents.models import (
@@ -63,7 +72,7 @@ async def run_demand_matching(demand_request: dict, sb=None, agent_run_id: str |
         crop=crop,
         # ponytail: demand_requests has no quantity column; score is still
         # driven by price/reliability/distance. Add quantity if the flow grows it.
-        quantity_kg=1.0,
+        quantity_kg=float(demand_request.get("remaining_quantity_kg") or demand_request.get("quantity_kg") or 1.0),
         quality_grade="A",
         harvest_date=harvested,
         storage_type=StorageType.AMBIENT,
@@ -96,7 +105,11 @@ async def run_demand_matching(demand_request: dict, sb=None, agent_run_id: str |
                 offered_price_per_kg=float(row.get("expected_price") or 0.0),
                 distance_km=0.0,  # no geo distance computed yet
                 pickup_in_hours=24.0,
-                buyer_reliability=float(vendor.get("reliability_score") or 0.8),
+                buyer_reliability=min(
+                    1.0,
+                    float(vendor.get("reliability_score") or 0.8)
+                    + (0.15 if row.get("vendor_id") in verified_vendor_ids else 0.0),
+                ),
                 transport_available=True,
             )
         )
@@ -119,8 +132,13 @@ async def run_demand_matching(demand_request: dict, sb=None, agent_run_id: str |
             "offered_price": m.offered_price_per_kg,
             "distance_km": m.distance_km,
             "shelf_life_compatible": True,
+            "vendor_verified": m.buyer_id in verified_vendor_ids,
             "reason": m.recommendation,
             "reason_labels": list(m.reason_labels),
+            "quantity_to_sell_kg": min(
+                float(demand_request.get("remaining_quantity_kg") or demand_request.get("quantity_kg") or 0.0),
+                float(next((r.get("quantity_needed") or 0.0 for r in rows if r.get("vendor_id") == m.buyer_id), 0.0)),
+            ),
             "matched_at": datetime.utcnow().isoformat(),
         }
         for m in result.top_matches

@@ -104,7 +104,7 @@ void handleSerialCommand() {
   } else if (command == "OFF") {
     setMotor(false);
   } else if (command.length() > 0) {
-    Serial.print("Unknown USB command: ");
+    Serial.print("Unknown command: ");
     Serial.println(command);
     Serial.println("Use ON or OFF.");
   }

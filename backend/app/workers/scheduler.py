@@ -1,26 +1,86 @@
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
 from datetime import datetime, timedelta
+from app.core.logging_config import get_logger
 from app.db.supabase_client import get_supabase_admin
 from app.services.notification_service import create_notification
 from app.services.hardware_service import queue_hardware_command
+from app.services.relay_service import dispatch_relay
 
 SHELF_LIFE_WARNING_HOURS = 24
+logger = get_logger("app.workers.scheduler")
 
 scheduler = AsyncIOScheduler()
+
+
+def _missing_duration_columns(exc: Exception) -> bool:
+    text = str(exc)
+    return "stop_after" in text and "does not exist" in text or "'42703'" in text
 
 
 async def check_irrigation_schedule():
     sb = get_supabase_admin()
     now = datetime.utcnow().isoformat()
+
+    try:
+        due_running = sb.table("irrigation_events").select("*") \
+            .eq("status", "running") \
+            .not_.is_("stop_after", "null") \
+            .lte("stop_after", now).limit(20).execute()
+    except Exception as exc:
+        if not _missing_duration_columns(exc):
+            raise
+        logger.warning(
+            "Duration-based irrigation columns are missing. "
+            "Run backend/migrations/008_duration_based_irrigation.sql."
+        )
+        due_running = None
+
+    for event in (due_running.data if due_running else []) or []:
+        sb.table("irrigation_events").update({
+            "status": "completed",
+            "stopped_at": now,
+        }).eq("id", event["id"]).execute()
+
+        queue_hardware_command(sb, event["farm_id"], "off", event["id"])
+        await dispatch_relay("off")
+
+        farm = sb.table("farms").select("farmer_id").eq("id", event["farm_id"]).execute()
+        if farm.data:
+            await create_notification(
+                sb, farm.data[0]["farmer_id"], "watering",
+                "Irrigation Completed",
+                "Watering stopped after the selected duration.",
+                event["id"],
+            )
+
     upcoming = sb.table("irrigation_events").select("*") \
         .eq("status", "pending") \
         .lte("scheduled_time", now).limit(10).execute()
 
     for event in upcoming.data:
-        sb.table("irrigation_events").update({"status": "running", "started_at": now}) \
-            .eq("id", event["id"]).execute()
+        update = {"status": "running", "started_at": now}
+        duration = event.get("requested_duration_minutes")
+        if duration and not event.get("stop_after"):
+            update["stop_after"] = (
+                datetime.utcnow() + timedelta(minutes=int(duration))
+            ).isoformat()
+        try:
+            sb.table("irrigation_events").update(update) \
+                .eq("id", event["id"]).execute()
+        except Exception as exc:
+            if not _missing_duration_columns(exc):
+                raise
+            legacy_update = {"status": "running", "started_at": now}
+            sb.table("irrigation_events").update(legacy_update) \
+                .eq("id", event["id"]).execute()
 
-        queue_hardware_command(sb, event["farm_id"], "on", event["id"])
+        queue_hardware_command(
+            sb,
+            event["farm_id"],
+            "on",
+            event["id"],
+            duration_minutes=event.get("requested_duration_minutes"),
+        )
 
         farm = sb.table("farms").select("farmer_id").eq("id", event["farm_id"]).execute()
         if farm.data:

@@ -19,7 +19,13 @@ final cacheProvider = Provider<CacheStore>((ref) => CacheStore());
 // Auth
 // ---------------------------------------------------------------------------
 
-enum AuthStatus { loading, needsLogin, needsOnboarding, ready }
+enum AuthStatus {
+  loading,
+  needsLogin,
+  needsVerification,
+  needsOnboarding,
+  ready,
+}
 
 enum AccountType { farmer, vendor }
 
@@ -105,13 +111,14 @@ class AuthController extends Notifier<AuthState> {
     try {
       final accountType = await ref.read(accountTypeProvider.notifier).load();
       final profile = await ref.read(backendProvider).getProfile();
-      state = AuthState(
-        accountType == AccountType.farmer &&
+      final needsVerification = !profile.isIdentityVerified;
+      final nextStatus = needsVerification
+          ? AuthStatus.needsVerification
+          : accountType == AccountType.farmer &&
                 (profile.soilType == null || profile.areaLocality == null)
-            ? AuthStatus.needsOnboarding
-            : AuthStatus.ready,
-        profile: profile,
-      );
+          ? AuthStatus.needsOnboarding
+          : AuthStatus.ready;
+      state = AuthState(nextStatus, profile: profile);
     } on ApiException catch (error) {
       state = const AuthState(AuthStatus.needsLogin);
       if (error.isUnauthorized) {
@@ -183,6 +190,40 @@ class AuthController extends Notifier<AuthState> {
     }
   }
 
+  Future<void> signupWithVerificationStart({
+    required String email,
+    required String password,
+    required AccountType accountType,
+    required String fullName,
+    required String phone,
+    required String stateName,
+    required String district,
+  }) async {
+    state = const AuthState(AuthStatus.loading);
+    try {
+      await ref.read(accountTypeProvider.notifier).setType(accountType);
+      final auth = await ref
+          .read(backendProvider)
+          .signupStart(
+            email: email,
+            password: password,
+            role: accountType == AccountType.vendor ? 'VENDOR' : 'FARMER',
+            fullName: fullName,
+            phone: phone,
+            state: stateName,
+            district: district,
+            consent: true,
+          );
+      await supabase.auth.setSession(auth.refreshToken);
+      await _loadProfile();
+    } on Exception {
+      state = const AuthState(AuthStatus.needsLogin);
+      rethrow;
+    }
+  }
+
+  Future<void> refreshProfile() => _loadProfile();
+
   Future<void> completeOnboarding({
     required String phone,
     required String soilType,
@@ -205,6 +246,12 @@ class AuthController extends Notifier<AuthState> {
               email: profile.email,
               soilType: soilType,
               areaLocality: areaLocality,
+              role: profile.role,
+              state: profile.state,
+              district: profile.district,
+              verificationStatus: profile.verificationStatus,
+              verificationBadge: profile.verificationBadge,
+              demoVerificationMode: profile.demoVerificationMode,
             ),
     );
   }
@@ -341,6 +388,10 @@ final marketRequestsProvider = FutureProvider<List<DemandRequest>>((ref) {
   return ref.watch(backendProvider).getDemandRequests();
 });
 
+final openVendorRequestsProvider = FutureProvider<List<VendorRequest>>((ref) {
+  return ref.watch(backendProvider).getOpenVendorRequests();
+});
+
 final settingsProvider = FutureProvider<AppSettings>((ref) {
   return ref.watch(backendProvider).getSettings();
 });
@@ -376,6 +427,14 @@ final vendorRequestsProvider = FutureProvider<List<VendorRequest>>((ref) {
 
 final vendorOpportunitiesProvider = FutureProvider<List<DemandRequest>>((ref) {
   return ref.watch(backendProvider).vendorOpportunities();
+});
+
+final vendorKpisProvider = FutureProvider<List<KpiItem>>((ref) {
+  return ref.watch(backendProvider).vendorKpis();
+});
+
+final vendorConfirmedSalesProvider = FutureProvider<List<ConfirmedSale>>((ref) {
+  return ref.watch(backendProvider).vendorConfirmedSales();
 });
 
 final impactProvider = FutureProvider.family<ImpactMetrics, String>((

@@ -201,6 +201,11 @@ async def test_create_vendor_request():
         "vendor_id": "vendor-1",
         "crop_name": "Maize",
     }])
+    mock_sb._tables["user_profiles"] = MockTable([{
+        "auth_user_id": "vendor-1",
+        "role": "VENDOR",
+        "verification_status": "IDENTITY_VERIFIED",
+    }])
 
     def _get_sb():
         return mock_sb
@@ -231,28 +236,3 @@ async def test_water_saved_no_data():
 
         result = await get_water_saved({"id": "farmer-1"})
         assert result["total_water_saved_liters"] == 0
-
-
-# ============================================================
-# Chat session test
-# ============================================================
-
-@pytest.mark.asyncio
-async def test_create_chat_session():
-    mock_sb = get_mock_supabase()
-    mock_sb._tables["chat_sessions"] = MockTable([{
-        "id": "session-1",
-        "created_at": "2026-08-17T00:00:00",
-    }])
-
-    def _get_sb():
-        return mock_sb
-
-    with patch("app.routers.chat.get_supabase", _get_sb):
-        from app.routers.chat import create_session, CreateSessionRequest
-
-        result = await create_session(
-            CreateSessionRequest(farm_id="farm-1"),
-            {"id": "farmer-1"},
-        )
-        assert result["id"] is not None

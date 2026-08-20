@@ -11,6 +11,7 @@ from datetime import datetime
 def queue_hardware_command(
     sb, farm_id: str, action: str, irrigation_event_id: str | None = None,
     agent_run_id: str | None = None,
+    duration_minutes: int | None = None,
 ) -> dict | None:
     """Queue a validated actuator command for the farm's device.
 
@@ -25,12 +26,16 @@ def queue_hardware_command(
     if not device.data:
         return None
     d = device.data[0]
+    payload = {"action": action}
+    if duration_minutes is not None:
+        payload["duration_minutes"] = duration_minutes
+
     resp = sb.table("mqtt_commands").insert({
         "farm_id": farm_id,
         "farm_device_id": d["id"],
         "irrigation_event_id": irrigation_event_id,
         "command_type": "motor_on" if action == "on" else "motor_off",
-        "payload": {"action": action},
+        "payload": payload,
         "publish_status": "pending",
         "agent_run_id": agent_run_id,
     }).execute()

@@ -19,6 +19,8 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
   final _name = TextEditingController();
   final _phone = TextEditingController();
   final _address = TextEditingController();
+  final _stateName = TextEditingController();
+  final _district = TextEditingController();
   final _formKey = GlobalKey<FormState>();
   bool _isSignup = false;
   bool _submitting = false;
@@ -31,6 +33,8 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
     _name.dispose();
     _phone.dispose();
     _address.dispose();
+    _stateName.dispose();
+    _district.dispose();
     super.dispose();
   }
 
@@ -46,21 +50,15 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
       final accountType = ref.read(accountTypeProvider);
       await ref.read(accountTypeProvider.notifier).setType(accountType);
       if (_isSignup) {
-        if (accountType == AccountType.vendor) {
-          await auth.signupVendor(
-            _email.text.trim(),
-            _password.text,
-            _name.text.trim(),
-            phone: _phone.text.trim(),
-            address: _address.text.trim(),
-          );
-        } else {
-          await auth.signup(
-            _email.text.trim(),
-            _password.text,
-            _name.text.trim(),
-          );
-        }
+        await auth.signupWithVerificationStart(
+          email: _email.text.trim(),
+          password: _password.text,
+          accountType: accountType,
+          fullName: _name.text.trim(),
+          phone: _phone.text.trim(),
+          stateName: _stateName.text.trim(),
+          district: _district.text.trim(),
+        );
       } else {
         await auth.login(_email.text.trim(), _password.text);
       }
@@ -163,7 +161,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                       ? 'Password must be at least 6 characters'
                       : null,
                 ),
-                if (_isSignup && accountType == AccountType.vendor) ...[
+                if (_isSignup) ...[
                   const SizedBox(height: 12),
                   TextFormField(
                     controller: _phone,
@@ -178,6 +176,28 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                   ),
                   const SizedBox(height: 12),
                   TextFormField(
+                    controller: _stateName,
+                    textInputAction: TextInputAction.next,
+                    decoration: const InputDecoration(labelText: 'State'),
+                    validator: (value) => value == null || value.trim().isEmpty
+                        ? 'Enter state'
+                        : null,
+                  ),
+                  const SizedBox(height: 12),
+                  TextFormField(
+                    controller: _district,
+                    textInputAction: accountType == AccountType.vendor
+                        ? TextInputAction.next
+                        : TextInputAction.done,
+                    decoration: const InputDecoration(labelText: 'District'),
+                    validator: (value) => value == null || value.trim().isEmpty
+                        ? 'Enter district'
+                        : null,
+                  ),
+                ],
+                if (_isSignup && accountType == AccountType.vendor) ...[
+                  const SizedBox(height: 12),
+                  TextFormField(
                     controller: _address,
                     minLines: 2,
                     maxLines: 3,
@@ -187,6 +207,19 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                     validator: (value) => value == null || value.trim().isEmpty
                         ? 'Enter address'
                         : null,
+                  ),
+                ],
+                if (_isSignup) ...[
+                  const SizedBox(height: 12),
+                  CheckboxListTile(
+                    value: true,
+                    onChanged: null,
+                    title: Text(
+                      accountType == AccountType.vendor
+                          ? 'I consent to vendor identity verification.'
+                          : 'I consent to farmer identity verification.',
+                    ),
+                    contentPadding: EdgeInsets.zero,
                   ),
                 ],
                 if (_error != null) ...[

@@ -204,42 +204,6 @@ $$;
 
 
 -- ============================================================
--- 6. CHAT-BASED UPLOAD AGENT
--- ============================================================
-
-CREATE TABLE IF NOT EXISTS chat_sessions (
-    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-
-    farmer_id UUID NOT NULL
-        REFERENCES farmers(id) ON DELETE CASCADE,
-
-    farm_id UUID
-        REFERENCES farms(id) ON DELETE SET NULL,
-
-    title TEXT,
-
-    created_at TIMESTAMPTZ DEFAULT now()
-);
-
-
-CREATE TABLE IF NOT EXISTS chat_messages (
-    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-
-    session_id UUID NOT NULL
-        REFERENCES chat_sessions(id) ON DELETE CASCADE,
-
-    role TEXT NOT NULL
-        CHECK (role IN ('user', 'assistant')),
-
-    content TEXT,
-
-    image_url TEXT,
-
-    created_at TIMESTAMPTZ DEFAULT now()
-);
-
-
--- ============================================================
 -- 7. INDEXES
 -- ============================================================
 
@@ -264,13 +228,6 @@ CREATE INDEX IF NOT EXISTS idx_vendor_requests_status
 CREATE INDEX IF NOT EXISTS idx_rescue_matches_vendor_request_id
     ON rescue_matches(vendor_request_id);
 
-CREATE INDEX IF NOT EXISTS idx_chat_sessions_farmer_id
-    ON chat_sessions(farmer_id);
-
-CREATE INDEX IF NOT EXISTS idx_chat_messages_session_id
-    ON chat_messages(session_id);
-
-
 -- ============================================================
 -- 8. ROW LEVEL SECURITY
 -- ============================================================
@@ -282,11 +239,6 @@ ALTER TABLE hardware_status_events ENABLE ROW LEVEL SECURITY;
 ALTER TABLE vendors ENABLE ROW LEVEL SECURITY;
 
 ALTER TABLE vendor_requests ENABLE ROW LEVEL SECURITY;
-
-ALTER TABLE chat_sessions ENABLE ROW LEVEL SECURITY;
-
-ALTER TABLE chat_messages ENABLE ROW LEVEL SECURITY;
-
 
 -- ============================================================
 -- 8A. FARM DEVICES
@@ -440,66 +392,6 @@ ON vendor_requests
 FOR UPDATE
 USING (
     vendor_id = auth.uid()
-);
-
-
--- ============================================================
--- 8E. CHAT SESSIONS
--- ============================================================
-
-DROP POLICY IF EXISTS chat_sessions_select
-ON chat_sessions;
-
-CREATE POLICY chat_sessions_select
-ON chat_sessions
-FOR SELECT
-USING (
-    farmer_id = public.farmer_id()
-);
-
-
-DROP POLICY IF EXISTS chat_sessions_insert
-ON chat_sessions;
-
-CREATE POLICY chat_sessions_insert
-ON chat_sessions
-FOR INSERT
-WITH CHECK (
-    farmer_id = public.farmer_id()
-);
-
-
--- ============================================================
--- 8F. CHAT MESSAGES
--- ============================================================
-
-DROP POLICY IF EXISTS chat_messages_select
-ON chat_messages;
-
-CREATE POLICY chat_messages_select
-ON chat_messages
-FOR SELECT
-USING (
-    session_id IN (
-        SELECT id
-        FROM chat_sessions
-        WHERE farmer_id = public.farmer_id()
-    )
-);
-
-
-DROP POLICY IF EXISTS chat_messages_insert
-ON chat_messages;
-
-CREATE POLICY chat_messages_insert
-ON chat_messages
-FOR INSERT
-WITH CHECK (
-    session_id IN (
-        SELECT id
-        FROM chat_sessions
-        WHERE farmer_id = public.farmer_id()
-    )
 );
 
 

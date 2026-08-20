@@ -42,9 +42,185 @@ class Backend {
     return AuthResponse.fromJson(json as Map<String, dynamic>);
   }
 
+  Future<AuthResponse> signupStart({
+    required String email,
+    required String password,
+    required String role,
+    required String fullName,
+    required String phone,
+    required String state,
+    required String district,
+    required bool consent,
+  }) async {
+    final json = await _api.post(
+      '/auth/signup/start',
+      body: {
+        'email': email,
+        'password': password,
+        'role': role,
+        'full_name': fullName,
+        'phone': phone,
+        'state': state,
+        'district': district,
+        'consent': consent,
+      },
+    );
+    return AuthResponse.fromJson(json as Map<String, dynamic>);
+  }
+
   Future<FarmerProfile> getProfile() async {
     final json = await _api.get('/auth/me');
     return FarmerProfile.fromJson(json as Map<String, dynamic>);
+  }
+
+  Future<VerificationResponse> sendPhoneOtp(String phone) async {
+    final json = await _api.post(
+      '/auth/phone/send-otp',
+      body: {'phone': phone},
+    );
+    return VerificationResponse.fromJson(json as Map<String, dynamic>);
+  }
+
+  Future<VerificationResponse> verifyPhoneOtp(String phone, String otp) async {
+    final json = await _api.post(
+      '/auth/phone/verify-otp',
+      body: {'phone': phone, 'otp': otp},
+    );
+    return VerificationResponse.fromJson(json as Map<String, dynamic>);
+  }
+
+  Future<VerificationResponse> startFarmerVerification({
+    required String fullName,
+    required String mobileNumber,
+    required String state,
+    required String district,
+    required String farmerId,
+    required bool consent,
+  }) async {
+    final json = await _api.post(
+      '/verification/farmer/start',
+      body: {
+        'full_name': fullName,
+        'mobile_number': mobileNumber,
+        'state': state,
+        'district': district,
+        'farmer_id': farmerId,
+        'consent': consent,
+      },
+    );
+    return VerificationResponse.fromJson(json as Map<String, dynamic>);
+  }
+
+  Future<VerificationResponse> sendFarmerOtp({
+    required String farmerId,
+    required String mobileNumber,
+  }) async {
+    final json = await _api.post(
+      '/verification/farmer/send-otp',
+      body: {'farmer_id': farmerId, 'mobile_number': mobileNumber},
+    );
+    return VerificationResponse.fromJson(json as Map<String, dynamic>);
+  }
+
+  Future<VerificationResponse> verifyFarmer({
+    required String farmerId,
+    required String mobileNumber,
+    required String otp,
+  }) async {
+    final json = await _api.post(
+      '/verification/farmer/verify',
+      body: {'farmer_id': farmerId, 'mobile_number': mobileNumber, 'otp': otp},
+    );
+    return VerificationResponse.fromJson(json as Map<String, dynamic>);
+  }
+
+  Future<VerificationResponse> startVendorVerification({
+    required String businessName,
+    required String contactPerson,
+    required String mobileNumber,
+    required String state,
+    required String district,
+    required String verificationType,
+    required String registrationNumber,
+    String? gstin,
+    required bool consent,
+  }) async {
+    final json = await _api.post(
+      '/verification/vendor/start',
+      body: {
+        'business_name': businessName,
+        'contact_person': contactPerson,
+        'mobile_number': mobileNumber,
+        'state': state,
+        'district': district,
+        'verification_type': verificationType,
+        'registration_number': registrationNumber,
+        if (gstin != null && gstin.trim().isNotEmpty) 'gstin': gstin.trim(),
+        'consent': consent,
+      },
+    );
+    return VerificationResponse.fromJson(json as Map<String, dynamic>);
+  }
+
+  Future<VerificationResponse> sendVendorOtp({
+    required String verificationType,
+    required String registrationNumber,
+    required String mobileNumber,
+  }) async {
+    final json = await _api.post(
+      '/verification/vendor/send-otp',
+      body: {
+        'verification_type': verificationType,
+        'registration_number': registrationNumber,
+        'mobile_number': mobileNumber,
+      },
+    );
+    return VerificationResponse.fromJson(json as Map<String, dynamic>);
+  }
+
+  Future<VerificationResponse> verifyVendor({
+    required String verificationType,
+    required String registrationNumber,
+    required String mobileNumber,
+    required String otp,
+  }) async {
+    final json = await _api.post(
+      '/verification/vendor/verify',
+      body: {
+        'verification_type': verificationType,
+        'registration_number': registrationNumber,
+        'mobile_number': mobileNumber,
+        'otp': otp,
+      },
+    );
+    return VerificationResponse.fromJson(json as Map<String, dynamic>);
+  }
+
+  Future<VerificationResponse> requestAadhaarOtp({
+    required String aadhaarNumber,
+    required bool consent,
+  }) async {
+    final json = await _api.post(
+      '/verification/aadhaar/request-otp',
+      body: {'aadhaar_number': aadhaarNumber, 'consent': consent},
+    );
+    return VerificationResponse.fromJson(json as Map<String, dynamic>);
+  }
+
+  Future<VerificationResponse> verifyAadhaarOtp({
+    required String aadhaarNumber,
+    required String otp,
+  }) async {
+    final json = await _api.post(
+      '/verification/aadhaar/verify-otp',
+      body: {'aadhaar_number': aadhaarNumber, 'otp': otp},
+    );
+    return VerificationResponse.fromJson(json as Map<String, dynamic>);
+  }
+
+  Future<VerificationStatusInfo> getVerificationStatus() async {
+    final json = await _api.get('/verification/status');
+    return VerificationStatusInfo.fromJson(json as Map<String, dynamic>);
   }
 
   // ---- farms ----
@@ -71,8 +247,11 @@ class Backend {
   Future<void> cancelNext(String farmId) =>
       _api.post('/motor/cancel-next', query: {'farm_id': farmId});
 
-  Future<void> motorOn(String farmId) =>
-      _api.post('/motor/on', query: {'farm_id': farmId});
+  Future<void> motorOn(String farmId, int durationMinutes) => _api.post(
+    '/motor/on',
+    query: {'farm_id': farmId},
+    body: {'duration_minutes': durationMinutes},
+  );
 
   /// Pair an ESP32/LoRa device to a farm. Returns the paired device row
   /// (secret is stored hashed server-side; never echoed back).
@@ -157,6 +336,13 @@ class Backend {
         .toList();
   }
 
+  Future<List<VendorRequest>> getOpenVendorRequests() async {
+    final json = await _api.get('/market/vendor-requests') as List;
+    return json
+        .map((e) => VendorRequest.fromJson(e as Map<String, dynamic>))
+        .toList();
+  }
+
   Future<void> extendShelfLife(String requestId, int days) => _api.patch(
     '/market/$requestId/extend-shelf-life',
     body: {'additional_days': days},
@@ -183,34 +369,6 @@ class Backend {
   Future<AnalysisStatus> getAnalysisStatus(String imageId) async {
     final json = await _api.get('/upload/$imageId/status');
     return AnalysisStatus.fromJson(json as Map<String, dynamic>);
-  }
-
-  // ---- chat ----
-  Future<String> createChatSession(String? farmId) async {
-    final json = await _api.post('/chat/sessions', body: {'farm_id': farmId});
-    final id = (json as Map<String, dynamic>)['id'];
-    return id as String;
-  }
-
-  Future<ChatMessage> sendChatMessage(
-    String sessionId, {
-    String? content,
-    File? image,
-  }) async {
-    final json = image != null
-        ? await _api.postMultipart(
-            '/chat/sessions/$sessionId/messages',
-            fields: {'content': content ?? ''},
-            fileField: 'image',
-            file: image,
-            longTimeout: true,
-          )
-        : await _api.postForm(
-            '/chat/sessions/$sessionId/messages',
-            fields: {'content': content ?? ''},
-            longTimeout: true,
-          );
-    return ChatMessage.fromJson(json as Map<String, dynamic>);
   }
 
   // ---- recommendations ----
@@ -271,6 +429,11 @@ class Backend {
 
   Future<void> markNotificationRead(String id) =>
       _api.patch('/notifications/$id/read');
+
+  Future<void> registerPushToken(String token, {String? platform}) => _api.post(
+    '/notifications/push-token',
+    body: {'token': token, if (platform != null) 'platform': platform},
+  );
 
   // ---- vendors ----
   Future<void> vendorSignup({
@@ -335,6 +498,62 @@ class Backend {
       body: {'quantity_kg': quantityKg},
     );
     return Map<String, dynamic>.from(json as Map);
+  }
+
+  Future<List<KpiItem>> vendorKpis() async {
+    final json = await _api.get('/vendors/kpis') as Map<String, dynamic>;
+    return (json['items'] as List? ?? [])
+        .map((e) => KpiItem.fromJson(Map<String, dynamic>.from(e as Map)))
+        .toList();
+  }
+
+  Future<List<ConfirmedSale>> vendorConfirmedSales() async {
+    final json = await _api.get('/vendors/confirmed-sales') as List;
+    return json
+        .map((e) => ConfirmedSale.fromJson(Map<String, dynamic>.from(e as Map)))
+        .toList();
+  }
+
+  Future<TransportRouteRecommendation> vendorPlanTransportRoute({
+    required DateTime deliveryDay,
+    required double pickupLatitude,
+    required double pickupLongitude,
+    required double deliveryLatitude,
+    required double deliveryLongitude,
+    required double quantityKg,
+    required String cropName,
+    required String vehicleType,
+    required double vehicleCapacityKg,
+    required double transportCostPerKm,
+    required bool refrigerated,
+    List<String> confirmedMatchIds = const [],
+  }) async {
+    final json = await _api.post(
+      '/vendors/transport/route',
+      body: {
+        'delivery_day': deliveryDay.toIso8601String(),
+        'delivery_location': {
+          'latitude': deliveryLatitude,
+          'longitude': deliveryLongitude,
+        },
+        'vehicle_type': vehicleType,
+        'vehicle_capacity_kg': vehicleCapacityKg,
+        'transport_cost_per_km': transportCostPerKm,
+        'refrigerated': refrigerated,
+        'confirmed_match_ids': confirmedMatchIds,
+        'crop_items': [
+          {
+            'crop_name': cropName,
+            'quantity_kg': quantityKg,
+            'pickup_location': {
+              'latitude': pickupLatitude,
+              'longitude': pickupLongitude,
+            },
+          },
+        ],
+      },
+    );
+    return TransportRouteRecommendation.fromJson(json as Map<String, dynamic>);
   }
 
   Future<TransportRouteRecommendation> vendorPlanRoute({

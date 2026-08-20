@@ -43,22 +43,32 @@ class HomeScreen extends ConsumerWidget {
           icon: const Icon(Icons.menu),
           onPressed: onOpenDrawer,
         ),
+        actions: [
+          IconButton(
+            tooltip: l10n.homeNotifications,
+            icon: const Icon(Icons.notifications_outlined),
+            onPressed: () => Navigator.of(context).push(
+              MaterialPageRoute(builder: (_) => const NotificationsScreen()),
+            ),
+          ),
+          const SizedBox(width: 8),
+        ],
       ),
       body: RefreshIndicator(
         onRefresh: () => _refresh(ref, farmId),
         child: ListView(
           children: [
             const FarmSwitcher(),
-            Padding(
-              padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
-              child: Text(
-                l10n.homeWelcome(ref.watch(authProvider).profile?.name ?? ''),
-                style: Theme.of(context).textTheme.headlineSmall,
-              ),
+            _HomeHero(
+              name: ref.watch(authProvider).profile?.name ?? '',
+              farmName: farm?.name,
+              badge: ref.watch(authProvider).profile?.verificationBadge,
+              onOpenDrawer: onOpenDrawer,
             ),
             if (farmId == null)
               const SizedBox.shrink()
             else ...[
+              _QuickActions(onNavigate: onNavigate),
               _KpiGrid(
                 waterSaved: ref.watch(waterSavedProvider),
                 motorStatus: ref.watch(motorStatusProvider(farmId)),
@@ -67,6 +77,7 @@ class HomeScreen extends ConsumerWidget {
               ),
               WeatherCard(provider: ref.watch(farmWeatherProvider(farmId))),
               _SignalCard(provider: ref.watch(motorStatusProvider(farmId))),
+              _KpiMatrixCard(provider: ref.watch(impactProvider(farmId))),
             ],
             _NotificationsPreview(provider: ref.watch(notificationsProvider)),
             const SizedBox(height: 16),
@@ -85,6 +96,236 @@ class HomeScreen extends ConsumerWidget {
       ref.read(farmsProvider.notifier).load();
     }
     await Future<void>.delayed(const Duration(milliseconds: 400));
+  }
+}
+
+class _HomeHero extends StatelessWidget {
+  const _HomeHero({
+    required this.name,
+    required this.farmName,
+    required this.badge,
+    required this.onOpenDrawer,
+  });
+
+  final String name;
+  final String? farmName;
+  final String? badge;
+  final VoidCallback onOpenDrawer;
+
+  @override
+  Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context);
+    final theme = Theme.of(context);
+    return Container(
+      margin: const EdgeInsets.fromLTRB(16, 12, 16, 8),
+      padding: const EdgeInsets.all(18),
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(8),
+        gradient: const LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: [Color(0xFF1B5E20), Color(0xFF2E7D32), Color(0xFF8D5A2B)],
+        ),
+        boxShadow: [
+          BoxShadow(
+            color: const Color(0xFF1B5E20).withValues(alpha: 0.18),
+            blurRadius: 18,
+            offset: const Offset(0, 10),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Container(
+                width: 44,
+                height: 44,
+                decoration: BoxDecoration(
+                  color: Colors.white.withValues(alpha: 0.16),
+                  borderRadius: BorderRadius.circular(8),
+                  border: Border.all(color: Colors.white24),
+                ),
+                child: const Icon(Icons.eco, color: Colors.white),
+              ),
+              const Spacer(),
+              IconButton.filledTonal(
+                tooltip: 'Menu',
+                onPressed: onOpenDrawer,
+                icon: const Icon(Icons.apps),
+                style: IconButton.styleFrom(
+                  backgroundColor: Colors.white.withValues(alpha: 0.16),
+                  foregroundColor: Colors.white,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 18),
+          Text(
+            l10n.homeWelcome(name),
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: theme.textTheme.headlineSmall?.copyWith(
+              color: Colors.white,
+              fontWeight: FontWeight.w900,
+            ),
+          ),
+          const SizedBox(height: 6),
+          if (badge != null) ...[
+            Chip(
+              avatar: const Icon(Icons.verified, size: 18),
+              label: Text(
+                badge == 'VERIFIED_VENDOR'
+                    ? 'Verified Buyer'
+                    : 'Verified Farmer',
+              ),
+              backgroundColor: Colors.white,
+              labelStyle: const TextStyle(fontWeight: FontWeight.w800),
+            ),
+            const SizedBox(height: 6),
+          ],
+          Text(
+            farmName == null
+                ? l10n.homeNoFarm
+                : '$farmName · ${l10n.homeWeatherIntelligence}',
+            maxLines: 2,
+            overflow: TextOverflow.ellipsis,
+            style: theme.textTheme.bodyMedium?.copyWith(
+              color: Colors.white.withValues(alpha: 0.86),
+              height: 1.35,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _QuickActions extends StatelessWidget {
+  const _QuickActions({required this.onNavigate});
+
+  final void Function(int index) onNavigate;
+
+  @override
+  Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context);
+    final actions = <({String label, IconData icon, int index, Color color})>[
+      (
+        label: l10n.navMotor,
+        icon: Icons.water_drop_outlined,
+        index: 1,
+        color: const Color(0xFF1976D2),
+      ),
+      (
+        label: l10n.navMarket,
+        icon: Icons.storefront_outlined,
+        index: 2,
+        color: const Color(0xFF8D5A2B),
+      ),
+      (
+        label: l10n.navUpload,
+        icon: Icons.camera_alt_outlined,
+        index: 3,
+        color: const Color(0xFF00897B),
+      ),
+      (
+        label: l10n.navRecommendations,
+        icon: Icons.insights_outlined,
+        index: 4,
+        color: const Color(0xFF6A1B9A),
+      ),
+      (
+        label: l10n.navInventory,
+        icon: Icons.inventory_2_outlined,
+        index: 8,
+        color: const Color(0xFF455A64),
+      ),
+      (
+        label: l10n.navPerformance,
+        icon: Icons.bar_chart_outlined,
+        index: 9,
+        color: const Color(0xFFC62828),
+      ),
+    ];
+
+    return SizedBox(
+      height: 98,
+      child: ListView.separated(
+        padding: const EdgeInsets.fromLTRB(16, 8, 16, 10),
+        scrollDirection: Axis.horizontal,
+        itemBuilder: (context, i) {
+          final item = actions[i];
+          return _ActionButton(
+            label: item.label,
+            icon: item.icon,
+            color: item.color,
+            onTap: () => onNavigate(item.index),
+          );
+        },
+        separatorBuilder: (_, __) => const SizedBox(width: 10),
+        itemCount: actions.length,
+      ),
+    );
+  }
+}
+
+class _ActionButton extends StatelessWidget {
+  const _ActionButton({
+    required this.label,
+    required this.icon,
+    required this.color,
+    required this.onTap,
+  });
+
+  final String label;
+  final IconData icon;
+  final Color color;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return SizedBox(
+      width: 132,
+      child: Material(
+        color: theme.colorScheme.surface,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(8),
+          side: BorderSide(color: theme.colorScheme.outlineVariant),
+        ),
+        child: InkWell(
+          borderRadius: BorderRadius.circular(8),
+          onTap: onTap,
+          child: Padding(
+            padding: const EdgeInsets.all(12),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Container(
+                  width: 34,
+                  height: 34,
+                  decoration: BoxDecoration(
+                    color: color.withValues(alpha: 0.12),
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: Icon(icon, color: color, size: 20),
+                ),
+                const Spacer(),
+                Text(
+                  label,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: theme.textTheme.labelLarge?.copyWith(
+                    fontWeight: FontWeight.w800,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
   }
 }
 
@@ -113,9 +354,19 @@ class _KpiGrid extends StatelessWidget {
         motor?.motorRelayState == true || motor?.currentStatus != null;
     final unreadAlerts =
         notifications.value?.where((n) => !n.isRead).length ?? 0;
-    final impactCount =
-        (impact.value?.precisionAgriculture.length ?? 0) +
-        (impact.value?.circularSupplyChain.length ?? 0);
+    final impactMetrics = [
+      ...?impact.value?.precisionAgriculture,
+      ...?impact.value?.circularSupplyChain,
+    ];
+    double metric(String type) {
+      for (final item in impactMetrics) {
+        if (item.metricType == type) return item.value ?? 0;
+      }
+      return 0;
+    }
+
+    final foodRescued = metric('food_rescued_kg');
+    final co2eAvoided = metric('co2e_avoided_kg');
 
     return Padding(
       padding: const EdgeInsets.fromLTRB(16, 4, 16, 8),
@@ -159,16 +410,47 @@ class _KpiGrid extends StatelessWidget {
           ),
           _KpiTile(
             icon: Icons.insights_outlined,
-            label: l10n.navImpact,
-            value: impactCount.toString(),
+            label: 'Food rescued',
+            value: '${foodRescued.toStringAsFixed(1)} kg',
             color: const Color(0xFF6A1B9A),
           ),
           _KpiTile(
             icon: Icons.agriculture_outlined,
-            label: l10n.navRecommendations,
-            value: impact.isLoading || motorStatus.isLoading ? '...' : 'Live',
+            label: 'CO2e avoided',
+            value: '${co2eAvoided.toStringAsFixed(1)} kg',
             color: const Color(0xFF795548),
           ),
+        ],
+      ),
+    );
+  }
+}
+
+class _KpiMatrixCard extends StatelessWidget {
+  const _KpiMatrixCard({required this.provider});
+
+  final AsyncValue<ImpactMetrics> provider;
+
+  @override
+  Widget build(BuildContext context) {
+    final matrix = provider.value?.kpiMatrix ?? const <KpiItem>[];
+    if (matrix.isEmpty) return const SizedBox.shrink();
+    return Card(
+      child: ExpansionTile(
+        leading: const Icon(Icons.functions_outlined),
+        title: const Text('KPI calculation matrix'),
+        children: [
+          for (final item in matrix)
+            ListTile(
+              title: Text(item.label),
+              subtitle: Text(
+                [
+                  if (item.formula != null) item.formula!,
+                  if (item.parameters.isNotEmpty)
+                    'Parameters: ${item.parameters.join(', ')}',
+                ].join('\n'),
+              ),
+            ),
         ],
       ),
     );

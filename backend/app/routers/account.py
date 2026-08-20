@@ -42,6 +42,11 @@ async def get_water_saved(current_farmer: dict = Depends(get_current_farmer)):
     sb = get_supabase()
     resp = sb.table("farmer_water_saved_totals").select("total_water_saved_liters") \
         .eq("farmer_id", current_farmer["id"]).execute()
-    if not resp.data:
-        return {"total_water_saved_liters": 0}
-    return {"total_water_saved_liters": resp.data[0]["total_water_saved_liters"]}
+    if resp.data:
+        return {"total_water_saved_liters": resp.data[0]["total_water_saved_liters"]}
+
+    fallback = sb.table("impact_metrics").select("value") \
+        .eq("farmer_id", current_farmer["id"]) \
+        .eq("metric_type", "water_saved_liters").execute()
+    total = sum(float(row.get("value") or 0) for row in fallback.data or [])
+    return {"total_water_saved_liters": round(total, 2)}

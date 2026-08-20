@@ -18,32 +18,15 @@ class UploadScreen extends ConsumerStatefulWidget {
 }
 
 class _UploadScreenState extends ConsumerState<UploadScreen> {
-  int _tab = 0;
-
   @override
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context);
     return Scaffold(
-      appBar: AppBar(title: Text(l10n.navUpload)),
-      body: Column(
-        children: [
-          SegmentedButton<int>(
-            segments: [
-              ButtonSegment(
-                  value: 0,
-                  label: Text(l10n.uploadPhotoAnalysis),
-                  icon: const Icon(Icons.photo_camera_outlined)),
-              ButtonSegment(
-                  value: 1,
-                  label: Text(l10n.uploadChatAgent),
-                  icon: const Icon(Icons.chat_bubble_outline)),
-            ],
-            selected: {_tab},
-            onSelectionChanged: (s) => setState(() => _tab = s.first),
-          ),
-          Expanded(child: _tab == 0 ? const _PhotoAnalysis() : const _ChatTab()),
-        ],
+      appBar: AppBar(
+        leading: Navigator.of(context).canPop() ? const BackButton() : null,
+        title: Text(l10n.uploadPhotoAnalysis),
       ),
+      body: const _PhotoAnalysis(),
     );
   }
 }
@@ -72,8 +55,7 @@ class _PhotoAnalysisState extends ConsumerState<_PhotoAnalysis> {
   }
 
   Future<void> _pick() async {
-    final picked =
-        await ImagePicker().pickImage(source: ImageSource.gallery);
+    final picked = await ImagePicker().pickImage(source: ImageSource.gallery);
     if (picked != null) {
       setState(() {
         _image = File(picked.path);
@@ -101,7 +83,10 @@ class _PhotoAnalysisState extends ConsumerState<_PhotoAnalysis> {
           .uploadCropImage(farmId, _image!);
       setState(() => _upload = upload);
       _poll?.cancel();
-      _poll = Timer.periodic(const Duration(seconds: 3), (_) => _refresh(upload.id));
+      _poll = Timer.periodic(
+        const Duration(seconds: 3),
+        (_) => _refresh(upload.id),
+      );
       _refresh(upload.id);
     } on Exception catch (e) {
       if (mounted) showError(context, e);
@@ -171,20 +156,17 @@ class _PhotoAnalysisState extends ConsumerState<_PhotoAnalysis> {
 }
 
 class _ResultsView extends StatelessWidget {
-  const _ResultsView({
-    required this.status,
-    required this.onRetake,
-  });
+  const _ResultsView({required this.status, required this.onRetake});
 
   final AnalysisStatus status;
   final VoidCallback onRetake;
 
   @override
   Widget build(BuildContext context) {
-    final healthResults =
-        status.results.where((r) => r.agentType == 'health').toList();
-    final yieldR =
-        status.results.where((r) => r.agentType == 'yield').toList();
+    final healthResults = status.results
+        .where((r) => r.agentType == 'health')
+        .toList();
+    final yieldR = status.results.where((r) => r.agentType == 'yield').toList();
     final health = healthResults.isEmpty
         ? null
         : HealthResult.fromJson(healthResults.first.resultJson);
@@ -217,8 +199,10 @@ class _HealthCard extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text(l10n.uploadHealthStatus,
-                style: Theme.of(context).textTheme.titleSmall),
+            Text(
+              l10n.uploadHealthStatus,
+              style: Theme.of(context).textTheme.titleSmall,
+            ),
             Text(health.healthStatus ?? '—'),
             if (health.crop != null) _row(l10n.uploadCrop, health.crop!),
             if (health.disease != null)
@@ -251,16 +235,15 @@ class _HealthCard extends StatelessWidget {
   }
 
   Widget _row(String label, String value) => Padding(
-        padding: const EdgeInsets.only(top: 6),
-        child: Row(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text('$label: ',
-                style: const TextStyle(fontWeight: FontWeight.w600)),
-            Expanded(child: Text(value)),
-          ],
-        ),
-      );
+    padding: const EdgeInsets.only(top: 6),
+    child: Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text('$label: ', style: const TextStyle(fontWeight: FontWeight.w600)),
+        Expanded(child: Text(value)),
+      ],
+    ),
+  );
 }
 
 class _YieldCard extends StatelessWidget {
@@ -277,11 +260,15 @@ class _YieldCard extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text(l10n.uploadYieldEstimate,
-                style: Theme.of(context).textTheme.titleSmall),
+            Text(
+              l10n.uploadYieldEstimate,
+              style: Theme.of(context).textTheme.titleSmall,
+            ),
             if (yield.cropType != null) _row(l10n.uploadCrop, yield.cropType!),
-            _row(l10n.uploadYieldEstimate,
-                '${yield.expectedYieldKg?.toStringAsFixed(1) ?? '—'} kg'),
+            _row(
+              l10n.uploadYieldEstimate,
+              '${yield.expectedYieldKg?.toStringAsFixed(1) ?? '—'} kg',
+            ),
             if (yield.confidenceLevel != null)
               _row(l10n.uploadConfidenceLevel, yield.confidenceLevel!),
             if (yield.riskFactors.isNotEmpty)
@@ -293,220 +280,13 @@ class _YieldCard extends StatelessWidget {
   }
 
   Widget _row(String label, String value) => Padding(
-        padding: const EdgeInsets.only(top: 6),
-        child: Row(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text('$label: ',
-                style: const TextStyle(fontWeight: FontWeight.w600)),
-            Expanded(child: Text(value)),
-          ],
-        ),
-      );
-}
-
-// ---------------------------------------------------------------------------
-// Mode B: chat agent
-// ---------------------------------------------------------------------------
-
-class _ChatTab extends ConsumerStatefulWidget {
-  const _ChatTab();
-
-  @override
-  ConsumerState<_ChatTab> createState() => _ChatTabState();
-}
-
-// Session id persists across tab switches so a chat is never silently lost.
-String? _persistedSessionId;
-
-class _ChatTabState extends ConsumerState<_ChatTab> {
-  final _controller = TextEditingController();
-  final _scroll = ScrollController();
-  final List<ChatMessage> _messages = [];
-  String? _sessionId = _persistedSessionId;
-  File? _pendingImage;
-  bool _sending = false;
-
-  @override
-  void dispose() {
-    _controller.dispose();
-    _scroll.dispose();
-    super.dispose();
-  }
-
-  Future<void> _pickImage() async {
-    final picked =
-        await ImagePicker().pickImage(source: ImageSource.gallery);
-    if (picked != null) setState(() => _pendingImage = File(picked.path));
-  }
-
-  Future<void> _send() async {
-    final text = _controller.text.trim();
-    final image = _pendingImage;
-    if (text.isEmpty && image == null) return;
-    setState(() {
-      _messages.add(ChatMessage(
-          id: DateTime.now().millisecondsSinceEpoch.toString(),
-          role: 'user',
-          content: text,
-          imageUrl: image?.path));
-      _pendingImage = null;
-      _controller.clear();
-      _sending = true;
-    });
-    _scrollDown();
-    try {
-      _sessionId ??= await ref
-          .read(backendProvider)
-          .createChatSession(ref.read(farmsProvider).currentFarm?.id);
-      _persistedSessionId = _sessionId;
-      final reply = await ref.read(backendProvider).sendChatMessage(
-            _sessionId!,
-            content: text.isEmpty ? null : text,
-            image: image,
-          );
-      setState(() => _messages.add(reply));
-    } on Exception catch (e) {
-      // Retry on failure: drop the failed bubble and restore input so the
-      // farmer can re-send.
-      setState(() {
-        _messages.removeLast();
-        _controller.text = text;
-        _pendingImage = image;
-      });
-      if (mounted) showError(context, e);
-    } finally {
-      if (mounted) setState(() => _sending = false);
-      _scrollDown();
-    }
-  }
-
-  void _scrollDown() {
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (_scroll.hasClients) {
-        _scroll.animateTo(
-          _scroll.position.maxScrollExtent,
-          duration: const Duration(milliseconds: 200),
-          curve: Curves.easeOut,
-        );
-      }
-    });
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final l10n = AppLocalizations.of(context);
-    return Column(
+    padding: const EdgeInsets.only(top: 6),
+    child: Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Expanded(
-          child: ListView.builder(
-            controller: _scroll,
-            padding: const EdgeInsets.all(12),
-            itemCount: _messages.length + (_sending ? 1 : 0),
-            itemBuilder: (context, i) {
-              if (i >= _messages.length) {
-                return const Padding(
-                  padding: EdgeInsets.all(16),
-                  child: Center(child: CircularProgressIndicator()),
-                );
-              }
-              return _Bubble(message: _messages[i]);
-            },
-          ),
-        ),
-        if (_pendingImage != null)
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 12),
-            child: Row(
-              children: [
-                ClipRRect(
-                  borderRadius: BorderRadius.circular(8),
-                  child: Image.file(_pendingImage!,
-                      height: 48, width: 48, fit: BoxFit.cover),
-                ),
-                const SizedBox(width: 8),
-                IconButton(
-                  icon: const Icon(Icons.close),
-                  onPressed: () => setState(() => _pendingImage = null),
-                ),
-              ],
-            ),
-          ),
-        SafeArea(
-          child: Padding(
-            padding: const EdgeInsets.all(12),
-            child: Row(
-              children: [
-                IconButton(
-                  onPressed: _sending ? null : _pickImage,
-                  icon: const Icon(Icons.photo_library_outlined),
-                ),
-                Expanded(
-                  child: TextField(
-                    controller: _controller,
-                    minLines: 1,
-                    maxLines: 4,
-                    decoration:
-                        InputDecoration(hintText: l10n.uploadAsk, isDense: true),
-                    onSubmitted: (_) => _send(),
-                  ),
-                ),
-                const SizedBox(width: 8),
-                FilledButton(
-                  onPressed: _sending ? null : _send,
-                  child: Text(l10n.uploadSend),
-                ),
-              ],
-            ),
-          ),
-        ),
+        Text('$label: ', style: const TextStyle(fontWeight: FontWeight.w600)),
+        Expanded(child: Text(value)),
       ],
-    );
-  }
-}
-
-class _Bubble extends StatelessWidget {
-  const _Bubble({required this.message});
-
-  final ChatMessage message;
-
-  @override
-  Widget build(BuildContext context) {
-    final isUser = message.isUser;
-    return Align(
-      alignment: isUser ? Alignment.centerRight : Alignment.centerLeft,
-      child: Container(
-        margin: const EdgeInsets.symmetric(vertical: 4),
-        padding: const EdgeInsets.all(10),
-        constraints: BoxConstraints(
-            maxWidth: MediaQuery.of(context).size.width * 0.75),
-        decoration: BoxDecoration(
-          color: isUser ? const Color(0xFF2E7D32) : Colors.white,
-          borderRadius: BorderRadius.circular(12),
-        ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            if (message.imageUrl != null &&
-                (message.imageUrl!.startsWith('http') || message.isUser))
-              Padding(
-                padding: const EdgeInsets.only(bottom: 4),
-                child: ClipRRect(
-                  borderRadius: BorderRadius.circular(8),
-                  child: message.imageUrl!.startsWith('http')
-                      ? Image.network(message.imageUrl!, height: 120, fit: BoxFit.cover)
-                      : Image.file(File(message.imageUrl!), height: 120, fit: BoxFit.cover),
-                ),
-              ),
-            if (message.content.isNotEmpty)
-              Text(
-                message.content,
-                style: TextStyle(
-                    color: isUser ? Colors.white : Colors.black87),
-              ),
-          ],
-        ),
-      ),
-    );
-  }
+    ),
+  );
 }

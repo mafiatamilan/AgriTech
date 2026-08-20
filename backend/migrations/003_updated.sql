@@ -607,33 +607,6 @@ CREATE INDEX IF NOT EXISTS idx_smart_reviews_farm
 
 
 -- ============================================================
--- 16. CHAT EXTENSIONS
--- ============================================================
-
-ALTER TABLE chat_messages
-    DROP CONSTRAINT IF EXISTS chat_messages_role_check;
-
-
-ALTER TABLE chat_messages
-    ADD CONSTRAINT chat_messages_role_check
-    CHECK (
-        role IN (
-            'user',
-            'assistant',
-            'system'
-        )
-    );
-
-
-ALTER TABLE chat_messages
-    ADD COLUMN IF NOT EXISTS agent_context_json JSONB;
-
-
-ALTER TABLE chat_sessions
-    ADD COLUMN IF NOT EXISTS updated_at TIMESTAMPTZ DEFAULT now();
-
-
--- ============================================================
 -- 17. NOTIFICATION EXTENSION
 -- ============================================================
 

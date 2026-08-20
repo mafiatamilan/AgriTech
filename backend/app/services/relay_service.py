@@ -8,7 +8,7 @@ from app.core.config import get_settings
 
 
 @dataclass
-class UsbRelayResult:
+class RelayResult:
     attempted: bool
     ok: bool
     action: str
@@ -19,7 +19,7 @@ class UsbRelayResult:
 def _baud_constant(baud_rate: int) -> int:
     baud = getattr(termios, f"B{baud_rate}", None)
     if baud is None:
-        raise ValueError(f"Unsupported USB relay baud rate: {baud_rate}")
+        raise ValueError(f"Unsupported relay baud rate: {baud_rate}")
     return baud
 
 
@@ -45,14 +45,14 @@ def _write_serial_command(port: str, baud_rate: int, command: str) -> None:
         os.close(fd)
 
 
-async def dispatch_usb_relay(action: str) -> UsbRelayResult:
+async def dispatch_relay(action: str) -> RelayResult:
     settings = get_settings()
     normalized = action.lower()
     command = "ON" if normalized == "on" else "OFF" if normalized == "off" else None
-    port = settings.USB_RELAY_PORT
+    port = settings.RELAY_PORT
 
     if command is None:
-        return UsbRelayResult(
+        return RelayResult(
             attempted=False,
             ok=False,
             action=action,
@@ -60,19 +60,19 @@ async def dispatch_usb_relay(action: str) -> UsbRelayResult:
             error="Unsupported relay action",
         )
 
-    if not settings.USB_RELAY_ENABLED:
-        return UsbRelayResult(attempted=False, ok=False, action=normalized, port=port)
+    if not settings.RELAY_ENABLED:
+        return RelayResult(attempted=False, ok=False, action=normalized, port=port)
 
     try:
         await asyncio.sleep(random.uniform(0.5, 1.0))
         await asyncio.to_thread(
             _write_serial_command,
             port,
-            settings.USB_RELAY_BAUD_RATE,
+            settings.RELAY_BAUD_RATE,
             command,
         )
     except Exception as exc:
-        return UsbRelayResult(
+        return RelayResult(
             attempted=True,
             ok=False,
             action=normalized,
@@ -80,4 +80,4 @@ async def dispatch_usb_relay(action: str) -> UsbRelayResult:
             error=str(exc),
         )
 
-    return UsbRelayResult(attempted=True, ok=True, action=normalized, port=port)
+    return RelayResult(attempted=True, ok=True, action=normalized, port=port)

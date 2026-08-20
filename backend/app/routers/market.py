@@ -3,8 +3,10 @@ from pydantic import BaseModel
 from app.core.deps import get_current_farmer
 from app.db.supabase_client import get_supabase
 from app.models.market import DemandRequestCreate, CropMatchResponse
+from app.models.verification import UserRole
 from app.agents.demand_matching import run_demand_matching
 from app.services.notification_service import create_notification
+from app.services.identity_verification_service import require_verified_role
 
 router = APIRouter(prefix="/market", tags=["market"])
 
@@ -73,6 +75,39 @@ def _reduce_inventory_for_sale(sb, farmer_id: str, crop_name: str, quantity_kg: 
         remaining_to_reduce -= reduce_by
 
 
+def _existing_buyer_ids(sb, request_id: str) -> set[str]:
+    existing = sb.table("rescue_matches").select("matched_buyer_info") \
+        .eq("demand_request_id", request_id).execute()
+    ids: set[str] = set()
+    for row in existing.data or []:
+        info = row.get("matched_buyer_info")
+        if isinstance(info, dict) and info.get("buyer_farmer_id"):
+            ids.add(info["buyer_farmer_id"])
+    return ids
+
+
+async def _refresh_matches_for_request(sb, request: dict) -> list[dict]:
+    existing_ids = _existing_buyer_ids(sb, request["id"])
+    matches = []
+    for match in await run_demand_matching(request, sb):
+        buyer_id = match.get("buyer_farmer_id")
+        if buyer_id and buyer_id in existing_ids:
+            continue
+        row = dict(match)
+        quantity = _as_float(row.pop("quantity_to_sell_kg", None))
+        insert = {
+            "demand_request_id": request["id"],
+            "matched_buyer_info": _strip(row),
+        }
+        if quantity > 0:
+            insert["quantity_kg"] = quantity
+        sb.table("rescue_matches").insert(insert).execute()
+        matches.append(row)
+        if buyer_id:
+            existing_ids.add(buyer_id)
+    return matches
+
+
 @router.get("/address-prompt")
 async def address_prompt(current_farmer: dict = Depends(get_current_farmer)):
     sb = get_supabase()
@@ -87,6 +122,7 @@ async def crop_match(
     current_farmer: dict = Depends(get_current_farmer),
 ):
     sb = get_supabase()
+    require_verified_role(sb, user_id=current_farmer["id"], role=UserRole.farmer)
 
     # Try to get shelf life from inventory_statuses (actual agent data)
     shelf_life_days = req.shelf_life_days
@@ -143,13 +179,7 @@ async def crop_match(
 
     # Candidates are listed for the farmer to choose from; the request stays
     # "open" until a match is confirmed or a vendor accepts.
-    matches = [_strip(m) for m in await run_demand_matching(demand_request, sb)][:3]
-
-    for match in matches:
-        sb.table("rescue_matches").insert({
-            "demand_request_id": demand_request["id"],
-            "matched_buyer_info": match,
-        }).execute()
+    matches = await _refresh_matches_for_request(sb, demand_request)
 
     return CropMatchResponse(
         demand_request_id=demand_request["id"],
@@ -169,6 +199,10 @@ async def list_requests(current_farmer: dict = Depends(get_current_farmer)):
     if not requests:
         return requests
 
+    for request in requests:
+        if request.get("status") == "open":
+            await _refresh_matches_for_request(sb, request)
+
     ids = [r["id"] for r in requests]
     matches = sb.table("rescue_matches").select("*") \
         .in_("demand_request_id", ids) \
@@ -186,6 +220,24 @@ async def list_requests(current_farmer: dict = Depends(get_current_farmer)):
                 m["matched_buyer_info"] = _enrich_buyer_info(sb, buyer_info)
             r["matches"].append(m)
     return requests
+
+
+@router.get("/vendor-requests")
+async def list_open_vendor_requests(current_farmer: dict = Depends(get_current_farmer)):
+    sb = get_supabase()
+    resp = sb.table("vendor_requests").select(
+        "*, vendors(business_name, contact_phone, contact_email, address)"
+    ).eq("status", "open").order("created_at", desc=True).limit(50).execute()
+    rows = []
+    for row in resp.data or []:
+        vendor = row.pop("vendors", None)
+        if isinstance(vendor, dict):
+            row["vendor_name"] = vendor.get("business_name")
+            row["vendor_phone"] = vendor.get("contact_phone")
+            row["vendor_email"] = vendor.get("contact_email")
+            row["vendor_address"] = vendor.get("address")
+        rows.append(row)
+    return rows
 
 
 @router.patch("/{request_id}/extend-shelf-life")
@@ -214,12 +266,8 @@ async def extend_shelf_life(
     sb.table("notifications").delete() \
         .eq("related_id", request_id).eq("type", "shelf_life_expiring").execute()
 
-    matches = [_strip(m) for m in await run_demand_matching(dr, sb)][:3]
-    for match in matches:
-        sb.table("rescue_matches").insert({
-            "demand_request_id": request_id,
-            "matched_buyer_info": match,
-        }).execute()
+    dr["shelf_life_expiry"] = new_expiry.isoformat()
+    matches = await _refresh_matches_for_request(sb, dr)
 
     return {"request_id": request_id, "new_expiry": new_expiry.isoformat(), "matches": matches}
 

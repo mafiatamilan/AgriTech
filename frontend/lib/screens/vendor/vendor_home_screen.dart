@@ -189,16 +189,70 @@ class _VendorHomeScreenState extends ConsumerState<VendorHomeScreen> {
     }
   }
 
+  Future<void> _planConfirmedSaleTransport(ConfirmedSale sale) async {
+    final request = await showDialog<_TransportPlanInput>(
+      context: context,
+      builder: (context) => _TransportPlanDialog(
+        opportunity: DemandRequest(
+          id: sale.matchId,
+          cropName: sale.cropName,
+          quantityKg: sale.quantityKg,
+          remainingQuantityKg: sale.quantityKg,
+        ),
+        defaultQuantityKg: sale.quantityKg,
+      ),
+    );
+    if (!mounted || request == null) return;
+
+    setState(() => _planningRoute = true);
+    try {
+      final recommendation = await ref
+          .read(backendProvider)
+          .vendorPlanTransportRoute(
+            deliveryDay: request.deliveryDay,
+            pickupLatitude: request.pickupLatitude,
+            pickupLongitude: request.pickupLongitude,
+            deliveryLatitude: request.deliveryLatitude,
+            deliveryLongitude: request.deliveryLongitude,
+            quantityKg: request.quantityKg,
+            cropName: sale.cropName,
+            vehicleType: request.vehicleType,
+            vehicleCapacityKg: request.vehicleCapacityKg,
+            transportCostPerKm: request.transportCostPerKm,
+            refrigerated: request.refrigerated,
+          );
+      if (!mounted) return;
+      await showDialog<void>(
+        context: context,
+        builder: (context) =>
+            _TransportRecommendationDialog(recommendation: recommendation),
+      );
+    } on Exception catch (e) {
+      if (mounted) showError(context, e);
+    } finally {
+      if (mounted) setState(() => _planningRoute = false);
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context);
     final requests = ref.watch(vendorRequestsProvider);
+    final badge = ref.watch(authProvider).profile?.verificationBadge;
 
     return Scaffold(
       appBar: AppBar(
         leading: Navigator.of(context).canPop() ? const BackButton() : null,
         title: Text(l10n.appTitle),
         actions: [
+          if (badge == 'VERIFIED_VENDOR')
+            const Padding(
+              padding: EdgeInsets.symmetric(vertical: 10),
+              child: Chip(
+                avatar: Icon(Icons.verified, size: 18),
+                label: Text('Verified Buyer'),
+              ),
+            ),
           IconButton(icon: const Icon(Icons.refresh), onPressed: _refresh),
           IconButton(
             icon: const Icon(Icons.logout),
@@ -231,6 +285,7 @@ class _VendorHomeScreenState extends ConsumerState<VendorHomeScreen> {
                   style: Theme.of(context).textTheme.titleMedium,
                 ),
               ),
+              _VendorKpiGrid(provider: ref.watch(vendorKpisProvider)),
               Card(
                 child: Padding(
                   padding: const EdgeInsets.all(16),
@@ -308,6 +363,17 @@ class _VendorHomeScreenState extends ConsumerState<VendorHomeScreen> {
                 onAccept: _accept,
                 onPlanTransport: _planTransport,
               ),
+              Padding(
+                padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
+                child: Text(
+                  'Confirmed sales for transport',
+                  style: Theme.of(context).textTheme.titleMedium,
+                ),
+              ),
+              _ConfirmedSalesList(
+                planningRoute: _planningRoute,
+                onPlanTransport: _planConfirmedSaleTransport,
+              ),
               const SizedBox(height: 16),
             ],
           ),
@@ -319,7 +385,73 @@ class _VendorHomeScreenState extends ConsumerState<VendorHomeScreen> {
   Future<void> _refresh() async {
     ref.invalidate(vendorRequestsProvider);
     ref.invalidate(vendorOpportunitiesProvider);
+    ref.invalidate(vendorKpisProvider);
+    ref.invalidate(vendorConfirmedSalesProvider);
     await Future<void>.delayed(const Duration(milliseconds: 300));
+  }
+}
+
+class _VendorKpiGrid extends StatelessWidget {
+  const _VendorKpiGrid({required this.provider});
+
+  final AsyncValue<List<KpiItem>> provider;
+
+  @override
+  Widget build(BuildContext context) {
+    final items = provider.value ?? const <KpiItem>[];
+    if (provider.isLoading && items.isEmpty) {
+      return const Padding(
+        padding: EdgeInsets.all(16),
+        child: LinearProgressIndicator(),
+      );
+    }
+    if (items.isEmpty) return const SizedBox.shrink();
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
+      child: GridView.count(
+        crossAxisCount: 2,
+        shrinkWrap: true,
+        physics: const NeverScrollableScrollPhysics(),
+        mainAxisSpacing: 8,
+        crossAxisSpacing: 8,
+        childAspectRatio: 1.7,
+        children: [
+          for (final item in items)
+            DecoratedBox(
+              decoration: BoxDecoration(
+                color: Theme.of(context).colorScheme.surface,
+                borderRadius: BorderRadius.circular(8),
+                border: Border.all(
+                  color: Theme.of(context).colorScheme.outlineVariant,
+                ),
+              ),
+              child: Padding(
+                padding: const EdgeInsets.all(12),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Text(
+                      '${item.value.toStringAsFixed(item.value.truncateToDouble() == item.value ? 0 : 1)} ${item.unit ?? ''}',
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      item.label,
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ],
+                ),
+              ),
+            ),
+        ],
+      ),
+    );
   }
 }
 
@@ -375,6 +507,60 @@ class _VendorOpportunitiesList extends ConsumerWidget {
                 ],
               );
       },
+    );
+  }
+}
+
+class _ConfirmedSalesList extends ConsumerWidget {
+  const _ConfirmedSalesList({
+    required this.planningRoute,
+    required this.onPlanTransport,
+  });
+
+  final bool planningRoute;
+  final Future<void> Function(ConfirmedSale sale) onPlanTransport;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final sales = ref.watch(vendorConfirmedSalesProvider);
+    return sales.when(
+      loading: () => const Padding(
+        padding: EdgeInsets.all(16),
+        child: Center(child: CircularProgressIndicator()),
+      ),
+      error: (e, _) => Padding(
+        padding: const EdgeInsets.all(8),
+        child: ErrorView(
+          onRetry: () => ref.invalidate(vendorConfirmedSalesProvider),
+        ),
+      ),
+      data: (items) => items.isEmpty
+          ? const Padding(
+              padding: EdgeInsets.all(16),
+              child: Center(child: Text('No confirmed sales yet')),
+            )
+          : Column(
+              children: [
+                for (final sale in items)
+                  Card(
+                    child: ListTile(
+                      leading: const Icon(Icons.local_shipping_outlined),
+                      title: Text(sale.cropName),
+                      subtitle: Text(
+                        '${sale.quantityKg.toStringAsFixed(0)} kg'
+                        '${sale.farmerProfile?.name == null ? '' : ' · ${sale.farmerProfile!.name}'}',
+                      ),
+                      trailing: FilledButton.tonalIcon(
+                        onPressed: planningRoute
+                            ? null
+                            : () => onPlanTransport(sale),
+                        icon: const Icon(Icons.route_outlined),
+                        label: const Text('Route'),
+                      ),
+                    ),
+                  ),
+              ],
+            ),
     );
   }
 }
@@ -550,6 +736,7 @@ class _ProfileDetailRow extends StatelessWidget {
 
 class _TransportPlanInput {
   _TransportPlanInput({
+    required this.deliveryDay,
     required this.pickupLatitude,
     required this.pickupLongitude,
     required this.deliveryLatitude,
@@ -562,6 +749,7 @@ class _TransportPlanInput {
     this.shelfLifeHours,
   });
 
+  final DateTime deliveryDay;
   final double pickupLatitude;
   final double pickupLongitude;
   final double deliveryLatitude;
@@ -599,6 +787,7 @@ class _TransportPlanDialogState extends State<_TransportPlanDialog> {
   late final TextEditingController _shelfLife;
   String _vehicleType = 'small_truck';
   bool _refrigerated = false;
+  DateTime _deliveryDay = DateTime.now().add(const Duration(days: 1));
 
   @override
   void initState() {
@@ -648,6 +837,7 @@ class _TransportPlanDialogState extends State<_TransportPlanDialog> {
     if (!_formKey.currentState!.validate()) return;
     Navigator.of(context).pop(
       _TransportPlanInput(
+        deliveryDay: _deliveryDay,
         pickupLatitude: _readCoordinate(_pickupLat)!,
         pickupLongitude: _readCoordinate(_pickupLon)!,
         deliveryLatitude: _readCoordinate(_deliveryLat)!,
@@ -689,6 +879,27 @@ class _TransportPlanDialogState extends State<_TransportPlanDialog> {
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
+              ListTile(
+                contentPadding: EdgeInsets.zero,
+                leading: const Icon(Icons.event_outlined),
+                title: const Text('Delivery day'),
+                subtitle: Text(fmtDate(_deliveryDay)),
+                trailing: TextButton(
+                  onPressed: () async {
+                    final now = DateTime.now();
+                    final picked = await showDatePicker(
+                      context: context,
+                      initialDate: _deliveryDay,
+                      firstDate: now,
+                      lastDate: now.add(const Duration(days: 60)),
+                    );
+                    if (picked != null) {
+                      setState(() => _deliveryDay = picked);
+                    }
+                  },
+                  child: const Text('Change'),
+                ),
+              ),
               TextFormField(
                 controller: _pickupLat,
                 keyboardType: const TextInputType.numberWithOptions(

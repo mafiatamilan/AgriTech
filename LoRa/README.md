@@ -39,16 +39,10 @@ arduino-cli core install esp32:esp32
 arduino-cli lib install LoRa
 ```
 
-## Find Both USB Ports
+## Find Both Board Ports
 
 ```bash
 arduino-cli board list
-```
-
-If serial discovery is blocked by permissions, try:
-
-```bash
-ls /dev/ttyUSB* /dev/ttyACM*
 ```
 
 ## Compile
@@ -60,11 +54,11 @@ arduino-cli compile --fqbn esp32:esp32:esp32 lora_ping_receiver
 
 ## Upload
 
-Replace the ports with the two ports from `arduino-cli board list`.
+Replace `<gateway-port>` and `<relay-port>` with the two ports from `arduino-cli board list`.
 
 ```bash
-arduino-cli upload -p /dev/ttyUSB0 --fqbn esp32:esp32:esp32 lora_ping_sender
-arduino-cli upload -p /dev/ttyUSB1 --fqbn esp32:esp32:esp32 lora_ping_receiver
+arduino-cli upload -p <gateway-port> --fqbn esp32:esp32:esp32 lora_ping_sender
+arduino-cli upload -p <relay-port> --fqbn esp32:esp32:esp32 lora_ping_receiver
 ```
 
 ## Monitor
@@ -72,8 +66,8 @@ arduino-cli upload -p /dev/ttyUSB1 --fqbn esp32:esp32:esp32 lora_ping_receiver
 Open two terminals:
 
 ```bash
-arduino-cli monitor -p /dev/ttyUSB0 -c baudrate=115200
-arduino-cli monitor -p /dev/ttyUSB1 -c baudrate=115200
+arduino-cli monitor -p <gateway-port> -c baudrate=115200
+arduino-cli monitor -p <relay-port> -c baudrate=115200
 ```
 
 Expected result:
@@ -146,8 +140,8 @@ arduino-cli compile --fqbn esp32:esp32:esp32 --build-path /tmp/lora_motor_relay_
 Upload:
 
 ```bash
-arduino-cli upload -p /dev/ttyUSB0 --fqbn esp32:esp32:esp32 --input-dir /tmp/lora_motor_gateway_build lora_motor_gateway_wifi
-arduino-cli upload -p /dev/ttyUSB1 --fqbn esp32:esp32:esp32 --input-dir /tmp/lora_motor_relay_build lora_motor_relay_node
+arduino-cli upload -p <gateway-port> --fqbn esp32:esp32:esp32 --input-dir /tmp/lora_motor_gateway_build lora_motor_gateway_wifi
+arduino-cli upload -p <relay-port> --fqbn esp32:esp32:esp32 --input-dir /tmp/lora_motor_relay_build lora_motor_relay_node
 ```
 
 Relay wiring depends on your relay module, but the default signal pin is:

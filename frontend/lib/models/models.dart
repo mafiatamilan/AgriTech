@@ -41,6 +41,12 @@ class FarmerProfile {
     this.preferredLanguage = 'en',
     this.soilType,
     this.areaLocality,
+    this.role,
+    this.state,
+    this.district,
+    this.verificationStatus = 'UNVERIFIED',
+    this.verificationBadge,
+    this.demoVerificationMode = false,
   });
 
   factory FarmerProfile.fromJson(Map<String, dynamic> json) => FarmerProfile(
@@ -51,6 +57,12 @@ class FarmerProfile {
     preferredLanguage: json['preferred_language'] as String? ?? 'en',
     soilType: json['soil_type'] as String?,
     areaLocality: json['area_locality'] as String?,
+    role: json['role'] as String?,
+    state: json['state'] as String?,
+    district: json['district'] as String?,
+    verificationStatus: json['verification_status'] as String? ?? 'UNVERIFIED',
+    verificationBadge: json['verification_badge'] as String?,
+    demoVerificationMode: json['demo_verification_mode'] == true,
   );
 
   final String id;
@@ -60,6 +72,16 @@ class FarmerProfile {
   final String preferredLanguage;
   final String? soilType;
   final String? areaLocality;
+  final String? role;
+  final String? state;
+  final String? district;
+  final String verificationStatus;
+  final String? verificationBadge;
+  final bool demoVerificationMode;
+
+  bool get isIdentityVerified => verificationStatus == 'IDENTITY_VERIFIED';
+  bool get isVerifiedFarmer => verificationBadge == 'VERIFIED_FARMER';
+  bool get isVerifiedVendor => verificationBadge == 'VERIFIED_VENDOR';
 }
 
 class AuthResponse {
@@ -78,6 +100,72 @@ class AuthResponse {
   final String accessToken;
   final String refreshToken;
   final String userId;
+}
+
+class VerificationResponse {
+  VerificationResponse({
+    required this.status,
+    required this.message,
+    this.verificationId,
+    this.maskedIdentifier,
+    this.demoMode = false,
+    this.badge,
+  });
+
+  factory VerificationResponse.fromJson(Map<String, dynamic> json) =>
+      VerificationResponse(
+        status: json['status']?.toString() ?? '',
+        message: json['message']?.toString() ?? '',
+        verificationId: json['verification_id'] as String?,
+        maskedIdentifier: json['masked_identifier'] as String?,
+        demoMode: json['demo_mode'] == true,
+        badge: json['badge'] as String?,
+      );
+
+  final String status;
+  final String message;
+  final String? verificationId;
+  final String? maskedIdentifier;
+  final bool demoMode;
+  final String? badge;
+}
+
+class VerificationStatusInfo {
+  VerificationStatusInfo({
+    required this.userId,
+    this.role,
+    required this.verificationStatus,
+    this.badge,
+    this.phoneVerified = false,
+    this.farmerIdVerified = false,
+    this.vendorVerified = false,
+    this.aadhaarVerified = false,
+    this.demoMode = false,
+  });
+
+  factory VerificationStatusInfo.fromJson(Map<String, dynamic> json) =>
+      VerificationStatusInfo(
+        userId: json['user_id'] as String? ?? '',
+        role: json['role'] as String?,
+        verificationStatus:
+            json['verification_status'] as String? ?? 'UNVERIFIED',
+        badge: json['badge'] as String?,
+        phoneVerified: json['phone_verified'] == true,
+        farmerIdVerified: json['farmer_id_verified'] == true,
+        vendorVerified: json['vendor_verified'] == true,
+        aadhaarVerified: json['aadhaar_verified'] == true,
+        demoMode: json['demo_mode'] == true,
+      );
+
+  final String userId;
+  final String? role;
+  final String verificationStatus;
+  final String? badge;
+  final bool phoneVerified;
+  final bool farmerIdVerified;
+  final bool vendorVerified;
+  final bool aadhaarVerified;
+  final bool demoMode;
 }
 
 class Farm {
@@ -140,6 +228,8 @@ class IrrigationEvent {
     this.startedAt,
     this.stoppedAt,
     this.durationSeconds,
+    this.requestedDurationMinutes,
+    this.stopAfter,
   });
 
   factory IrrigationEvent.fromJson(Map<String, dynamic> json) =>
@@ -149,6 +239,8 @@ class IrrigationEvent {
         startedAt: _date(json['started_at']),
         stoppedAt: _date(json['stopped_at']),
         durationSeconds: _int(json['duration_seconds']),
+        requestedDurationMinutes: _int(json['requested_duration_minutes']),
+        stopAfter: _date(json['stop_after']),
       );
 
   final String status;
@@ -156,6 +248,8 @@ class IrrigationEvent {
   final DateTime? startedAt;
   final DateTime? stoppedAt;
   final int? durationSeconds;
+  final int? requestedDurationMinutes;
+  final DateTime? stopAfter;
 }
 
 class MoistureReading {
@@ -175,6 +269,7 @@ class MotorStatus {
   MotorStatus({
     this.lastWatered,
     this.nextWatering,
+    this.nextWateringSource,
     this.currentStatus,
     required this.moistureReadings,
     this.signalStrength,
@@ -194,6 +289,7 @@ class MotorStatus {
         : IrrigationEvent.fromJson(
             Map<String, dynamic>.from(json['next_watering'] as Map),
           ),
+    nextWateringSource: json['next_watering_source'] as String?,
     currentStatus: json['current_status'] == null
         ? null
         : IrrigationEvent.fromJson(
@@ -216,6 +312,7 @@ class MotorStatus {
 
   final IrrigationEvent? lastWatered;
   final IrrigationEvent? nextWatering;
+  final String? nextWateringSource;
   final IrrigationEvent? currentStatus;
   final List<MoistureReading> moistureReadings;
   final int? signalStrength;
@@ -522,6 +619,65 @@ class TransportRouteRecommendation {
   final List<String> reasonLabels;
 }
 
+class KpiItem {
+  KpiItem({
+    required this.key,
+    required this.label,
+    required this.value,
+    this.unit,
+    this.formula,
+    this.parameters = const [],
+  });
+
+  factory KpiItem.fromJson(Map<String, dynamic> json) => KpiItem(
+    key: json['key'] as String? ?? json['metric_type'] as String? ?? '',
+    label: json['label'] as String? ?? '',
+    value: _num(json['value']) ?? 0,
+    unit: json['unit'] as String?,
+    formula: json['formula'] as String?,
+    parameters: (json['parameters'] as List? ?? [])
+        .map((e) => e.toString())
+        .toList(),
+  );
+
+  final String key;
+  final String label;
+  final double value;
+  final String? unit;
+  final String? formula;
+  final List<String> parameters;
+}
+
+class ConfirmedSale {
+  ConfirmedSale({
+    required this.matchId,
+    required this.cropName,
+    required this.quantityKg,
+    this.confirmedAt,
+    this.farmerProfile,
+  });
+
+  factory ConfirmedSale.fromJson(Map<String, dynamic> json) {
+    final match = _map(json['match']) ?? {};
+    final demand = _map(json['demand_request']) ?? {};
+    return ConfirmedSale(
+      matchId: match['id'] as String? ?? '',
+      cropName: demand['crop_name'] as String? ?? 'Crop',
+      quantityKg: _num(match['quantity_kg']) ?? 0,
+      confirmedAt: _date(match['confirmed_at']),
+      farmerProfile: _map(json['farmer_profile']) == null
+          ? null
+          : PartyProfile.fromJson(_map(json['farmer_profile'])!),
+    );
+  }
+
+  final String matchId;
+  final String cropName;
+  final double quantityKg;
+  final DateTime? confirmedAt;
+  final PartyProfile? farmerProfile;
+}
+
 class RescueMatch {
   RescueMatch({
     required this.id,
@@ -696,32 +852,6 @@ class YieldResult {
   final List<String> riskFactors;
 }
 
-class ChatMessage {
-  ChatMessage({
-    required this.id,
-    required this.role,
-    required this.content,
-    this.imageUrl,
-    this.createdAt,
-  });
-
-  factory ChatMessage.fromJson(Map<String, dynamic> json) => ChatMessage(
-    id: json['id'] as String? ?? 'msg_${DateTime.now().millisecondsSinceEpoch}',
-    role: json['role'] as String? ?? 'user',
-    content: json['content'] as String? ?? '',
-    imageUrl: json['image_url'] as String?,
-    createdAt: _date(json['created_at']),
-  );
-
-  final String id;
-  final String role;
-  final String content;
-  final String? imageUrl;
-  final DateTime? createdAt;
-
-  bool get isUser => role == 'user';
-}
-
 class Recommendations {
   Recommendations({
     this.healthAnalysis,
@@ -853,6 +983,7 @@ class ImpactMetrics {
   ImpactMetrics({
     required this.precisionAgriculture,
     required this.circularSupplyChain,
+    this.kpiMatrix = const [],
   });
 
   factory ImpactMetrics.fromJson(Map<String, dynamic> json) {
@@ -865,11 +996,15 @@ class ImpactMetrics {
     return ImpactMetrics(
       precisionAgriculture: parse('precision_agriculture'),
       circularSupplyChain: parse('circular_supply_chain'),
+      kpiMatrix: (json['kpi_matrix'] as List? ?? [])
+          .map((e) => KpiItem.fromJson(Map<String, dynamic>.from(e as Map)))
+          .toList(),
     );
   }
 
   final List<ImpactMetricDetails> precisionAgriculture;
   final List<ImpactMetricDetails> circularSupplyChain;
+  final List<KpiItem> kpiMatrix;
 
   bool get isEmpty =>
       precisionAgriculture.isEmpty && circularSupplyChain.isEmpty;
@@ -1030,6 +1165,10 @@ class VendorRequest {
     this.expectedPrice,
     this.status = 'open',
     this.createdAt,
+    this.vendorName,
+    this.vendorPhone,
+    this.vendorEmail,
+    this.vendorAddress,
   });
 
   factory VendorRequest.fromJson(Map<String, dynamic> json) => VendorRequest(
@@ -1039,6 +1178,10 @@ class VendorRequest {
     expectedPrice: _num(json['expected_price']),
     status: json['status'] as String? ?? 'open',
     createdAt: _date(json['created_at']),
+    vendorName: json['vendor_name'] as String?,
+    vendorPhone: json['vendor_phone'] as String?,
+    vendorEmail: json['vendor_email'] as String?,
+    vendorAddress: json['vendor_address'] as String?,
   );
 
   final String id;
@@ -1047,6 +1190,10 @@ class VendorRequest {
   final double? expectedPrice;
   final String status;
   final DateTime? createdAt;
+  final String? vendorName;
+  final String? vendorPhone;
+  final String? vendorEmail;
+  final String? vendorAddress;
 }
 
 class WeatherInfo {

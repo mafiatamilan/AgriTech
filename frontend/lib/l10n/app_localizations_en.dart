@@ -253,8 +253,6 @@ class AppLocalizationsEn extends AppLocalizations {
   String get uploadPhotoAnalysis => 'Photo analysis';
 
   @override
-  String get uploadChatAgent => 'Chat agent';
-
   @override
   String get uploadPickImage => 'Pick photo';
 
@@ -306,11 +304,6 @@ class AppLocalizationsEn extends AppLocalizations {
   String get uploadYieldEstimate => 'Yield estimate';
 
   @override
-  String get uploadAsk => 'Ask about your crop…';
-
-  @override
-  String get uploadSend => 'Send';
-
   @override
   String get uploadLoading => 'Analyzing…';
 

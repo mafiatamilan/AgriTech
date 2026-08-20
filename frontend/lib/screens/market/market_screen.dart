@@ -69,6 +69,7 @@ class _MarketScreenState extends ConsumerState<MarketScreen> {
           );
       setState(() => _lastResult = result);
       ref.invalidate(marketRequestsProvider);
+      ref.invalidate(openVendorRequestsProvider);
       _cropController.clear();
       _quantityController.clear();
       _shelfLifeController.clear();
@@ -82,6 +83,16 @@ class _MarketScreenState extends ConsumerState<MarketScreen> {
     } finally {
       if (mounted) setState(() => _submitting = false);
     }
+  }
+
+  void _useVendorRequest(VendorRequest request) {
+    setState(() {
+      _inventoryChoice = _manualCropChoice;
+      _cropController.text = request.cropName;
+      if (request.expectedPrice != null) {
+        _priceController.text = request.expectedPrice!.toStringAsFixed(2);
+      }
+    });
   }
 
   void _selectInventoryCrop(String value, List<InventoryItem> inventory) {
@@ -140,6 +151,7 @@ class _MarketScreenState extends ConsumerState<MarketScreen> {
     try {
       await ref.read(backendProvider).extendShelfLife(request.id, days);
       ref.invalidate(marketRequestsProvider);
+      ref.invalidate(openVendorRequestsProvider);
       ref.invalidate(notificationsProvider);
     } on Exception catch (e) {
       if (mounted) showError(context, e);
@@ -169,6 +181,7 @@ class _MarketScreenState extends ConsumerState<MarketScreen> {
     try {
       await ref.read(backendProvider).confirmMatch(match.id);
       ref.invalidate(marketRequestsProvider);
+      ref.invalidate(openVendorRequestsProvider);
       ref.invalidate(inventoryProvider);
       if (mounted) {
         ScaffoldMessenger.of(
@@ -198,7 +211,10 @@ class _MarketScreenState extends ConsumerState<MarketScreen> {
     return Scaffold(
       appBar: AppBar(title: Text(l10n.navMarket)),
       body: RefreshIndicator(
-        onRefresh: () async => ref.invalidate(marketRequestsProvider),
+        onRefresh: () async {
+          ref.invalidate(marketRequestsProvider);
+          ref.invalidate(openVendorRequestsProvider);
+        },
         child: ListView(
           children: [
             const FarmSwitcher(),
@@ -217,6 +233,10 @@ class _MarketScreenState extends ConsumerState<MarketScreen> {
                   _selectInventoryCrop(value, availableInventory),
               onPickDate: _pickDate,
               onSubmit: _submitMatch,
+            ),
+            _OpenVendorRequests(
+              provider: ref.watch(openVendorRequestsProvider),
+              onUse: _useVendorRequest,
             ),
             if (_lastResult != null) _MatchResultCard(result: _lastResult!),
             Padding(
@@ -266,6 +286,52 @@ class _MarketScreenState extends ConsumerState<MarketScreen> {
           ],
         ),
       ),
+    );
+  }
+}
+
+class _OpenVendorRequests extends StatelessWidget {
+  const _OpenVendorRequests({required this.provider, required this.onUse});
+
+  final AsyncValue<List<VendorRequest>> provider;
+  final ValueChanged<VendorRequest> onUse;
+
+  @override
+  Widget build(BuildContext context) {
+    return provider.when(
+      loading: () => const SizedBox.shrink(),
+      error: (e, _) => const SizedBox.shrink(),
+      data: (items) {
+        if (items.isEmpty) return const SizedBox.shrink();
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Padding(
+              padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
+              child: Text(
+                'Vendor requests',
+                style: Theme.of(context).textTheme.titleMedium,
+              ),
+            ),
+            for (final request in items.take(5))
+              Card(
+                child: ListTile(
+                  leading: const Icon(Icons.shopping_basket_outlined),
+                  title: Text(request.cropName),
+                  subtitle: Text(
+                    '${request.vendorName ?? 'Vendor'} · '
+                    '${request.quantityNeeded?.toStringAsFixed(0) ?? '—'} kg · '
+                    '${money(request.expectedPrice)}',
+                  ),
+                  trailing: FilledButton.tonal(
+                    onPressed: () => onUse(request),
+                    child: const Text('List crop'),
+                  ),
+                ),
+              ),
+          ],
+        );
+      },
     );
   }
 }

@@ -78,6 +78,11 @@ async def test_crop_match_returns_response():
         "demand_request_id": "req-1",
         "matched_buyer_info": {"buyer_name": "Vendor A", "offered_price": 10.0},
     }])
+    mock_sb._tables["user_profiles"] = MockTable([{
+        "auth_user_id": "test-farmer-id",
+        "role": "FARMER",
+        "verification_status": "IDENTITY_VERIFIED",
+    }])
 
     def _get_sb():
         return mock_sb
@@ -115,3 +120,20 @@ async def test_cancel_next_with_no_pending():
         svc = IrrigationService(sb)
         result = await svc.cancel_next("farm-123")
         assert result["status"] == "no_pending_event"
+
+
+@pytest.mark.asyncio
+async def test_manual_on_records_requested_duration():
+    from app.services.irrigation_service import IrrigationService
+
+    sb = get_mock_supabase()
+    svc = IrrigationService(sb)
+
+    result = await svc.manual_on("farm-123", 12)
+    event = sb._tables["irrigation_events"].data[0]
+
+    assert result["status"] == "running"
+    assert result["duration_minutes"] == 12
+    assert event["requested_duration_minutes"] == 12
+    assert event["stop_after"] is not None
+    assert event["source"] == "manual"
