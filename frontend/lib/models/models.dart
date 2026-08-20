@@ -179,8 +179,6 @@ class MotorStatus {
     required this.moistureReadings,
     this.signalStrength,
     this.motorRelayState,
-    this.device,
-    this.loraGateway,
   });
 
   factory MotorStatus.fromJson(Map<String, dynamic> json) => MotorStatus(
@@ -206,12 +204,6 @@ class MotorStatus {
         .toList(),
     signalStrength: json['signal_strength'] as int?,
     motorRelayState: json['motor_relay_state'] as bool?,
-    device: _map(json['device']),
-    loraGateway: json['lora_gateway'] == null
-        ? null
-        : LoraGatewayStatus.fromJson(
-            Map<String, dynamic>.from(json['lora_gateway'] as Map),
-          ),
   );
 
   final IrrigationEvent? lastWatered;
@@ -220,48 +212,6 @@ class MotorStatus {
   final List<MoistureReading> moistureReadings;
   final int? signalStrength;
   final bool? motorRelayState;
-  final Map<String, dynamic>? device;
-  final LoraGatewayStatus? loraGateway;
-}
-
-class LoraGatewayStatus {
-  LoraGatewayStatus({
-    required this.reachable,
-    this.url,
-    this.deviceUid,
-    this.ip,
-    this.lastCommand,
-    this.lastAck,
-    this.lastAckRssi,
-    this.lastAckSnr,
-    this.lastBackendCode,
-    this.lastBackendAction,
-  });
-
-  factory LoraGatewayStatus.fromJson(Map<String, dynamic> json) =>
-      LoraGatewayStatus(
-        reachable: json['reachable'] == true,
-        url: json['url'] as String?,
-        deviceUid: json['device_uid'] as String?,
-        ip: json['ip'] as String?,
-        lastCommand: json['last_command'] as String?,
-        lastAck: json['last_ack'] as String?,
-        lastAckRssi: _int(json['last_ack_rssi']),
-        lastAckSnr: _num(json['last_ack_snr']),
-        lastBackendCode: _int(json['last_backend_code']),
-        lastBackendAction: json['last_backend_action'] as String?,
-      );
-
-  final bool reachable;
-  final String? url;
-  final String? deviceUid;
-  final String? ip;
-  final String? lastCommand;
-  final String? lastAck;
-  final int? lastAckRssi;
-  final double? lastAckSnr;
-  final int? lastBackendCode;
-  final String? lastBackendAction;
 }
 
 class AppNotification {
